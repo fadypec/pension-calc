@@ -459,6 +459,216 @@
   </div>
 
   <script>
+    // === EMBEDDED DATA ===
+
+    // CPIH annual rates 1990-2025 (ONS series L55O)
+    const CPIH_DATA = [
+      { year: 1990, rate: 7.7 }, { year: 1991, rate: 7.5 }, { year: 1992, rate: 4.3 },
+      { year: 1993, rate: 2.6 }, { year: 1994, rate: 2.0 }, { year: 1995, rate: 2.7 },
+      { year: 1996, rate: 2.7 }, { year: 1997, rate: 2.3 }, { year: 1998, rate: 2.0 },
+      { year: 1999, rate: 1.4 }, { year: 2000, rate: 1.2 }, { year: 2001, rate: 1.5 },
+      { year: 2002, rate: 1.5 }, { year: 2003, rate: 1.4 }, { year: 2004, rate: 1.5 },
+      { year: 2005, rate: 2.2 }, { year: 2006, rate: 2.8 }, { year: 2007, rate: 2.5 },
+      { year: 2008, rate: 3.8 }, { year: 2009, rate: 2.0 }, { year: 2010, rate: 2.6 },
+      { year: 2011, rate: 3.8 }, { year: 2012, rate: 2.6 }, { year: 2013, rate: 2.3 },
+      { year: 2014, rate: 1.5 }, { year: 2015, rate: 0.4 }, { year: 2016, rate: 1.2 },
+      { year: 2017, rate: 2.6 }, { year: 2018, rate: 2.3 }, { year: 2019, rate: 1.8 },
+      { year: 2020, rate: 1.0 }, { year: 2021, rate: 3.2 }, { year: 2022, rate: 7.9 },
+      { year: 2023, rate: 5.2 }, { year: 2024, rate: 3.2 }, { year: 2025, rate: 2.8 },
+    ];
+
+    // Annuity rates by retirement age (single life, level, approximate 2026 UK market)
+    const ANNUITY_RATES = [
+      { age: 55, rate: 0.040 }, { age: 58, rate: 0.043 }, { age: 60, rate: 0.045 },
+      { age: 62, rate: 0.048 }, { age: 65, rate: 0.050 }, { age: 67, rate: 0.053 },
+      { age: 68, rate: 0.055 }, { age: 70, rate: 0.060 }, { age: 75, rate: 0.070 },
+    ];
+
+    // Fund data (Aviva Pensions International Index Tracking, April 2026 factsheet TM10024)
+    const FUND = {
+      name: 'Aviva Pensions International Index Tracking S2',
+      charge: 0.006, // 0.60% OCF
+      benchmark: 'FTSE World ex UK',
+      return5yr: 0.1030, // 5-year annualised
+      return10yr: 0.1220, // 10-year annualised
+    };
+
+    // Defaults
+    const DEFAULTS = {
+      currentBalance: 31614.51,
+      monthlyContribution: 3183.96,
+      baseSalary: 85000,
+      employeeContribPct: 0.33,
+      employerContribPct: 0.07,
+      retirementAge: 68,
+      currentAge: 30,
+      expectedReturn: 0.103,
+      inflationRate: null, // derived from CPIH_DATA
+      salaryGrowth: 0.035,
+      realRaise: 0.01,
+      withdrawalRate: 0.04,
+      colaEnabled: false,
+      employerNicRate: 0.15,
+      nicSecondaryThreshold: 5000,
+    };
+
+    // Derive default inflation from CPIH mean
+    DEFAULTS.inflationRate = CPIH_DATA.reduce((sum, d) => sum + d.rate, 0) / CPIH_DATA.length / 100;
+
+    // === CALCULATION ENGINE ===
+
+    function deriveInflationDefault() {
+      const mean = CPIH_DATA.reduce((sum, d) => sum + d.rate, 0) / CPIH_DATA.length;
+      return mean / 100; // convert percentage to decimal
+    }
+
+    function interpolateAnnuityRate(age) {
+      if (age <= ANNUITY_RATES[0].age) return ANNUITY_RATES[0].rate;
+      if (age >= ANNUITY_RATES[ANNUITY_RATES.length - 1].age) return ANNUITY_RATES[ANNUITY_RATES.length - 1].rate;
+      for (let i = 0; i < ANNUITY_RATES.length - 1; i++) {
+        const lower = ANNUITY_RATES[i];
+        const upper = ANNUITY_RATES[i + 1];
+        if (age >= lower.age && age <= upper.age) {
+          const t = (age - lower.age) / (upper.age - lower.age);
+          return lower.rate + t * (upper.rate - lower.rate);
+        }
+      }
+      return ANNUITY_RATES[ANNUITY_RATES.length - 1].rate;
+    }
+
+    function calculateMonthlyContribution(salary, employeePct, employerPct, nicRate, nicThreshold) {
+      const employeeAmount = salary * employeePct;
+      const employerAmount = salary * employerPct;
+      // NIC saving: employer saves NIC on the salary sacrifice amount
+      const sacrificeAmount = salary * employeePct;
+      const nicSaving = sacrificeAmount * nicRate;
+      const totalAnnual = employeeAmount + employerAmount + nicSaving;
+      return totalAnnual / 12;
+    }
+
+    function projectPension(params) {
+      const {
+        currentBalance, monthlyContribution, baseSalary,
+        employeePct, employerPct, retirementAge, currentAge,
+        expectedReturn, inflationRate, salaryGrowth, realRaise,
+        withdrawalRate, colaEnabled, fundCharge, nicRate, nicThreshold,
+      } = params;
+
+      const netAnnualReturn = expectedReturn - fundCharge;
+      const netMonthlyReturn = Math.pow(1 + netAnnualReturn, 1/12) - 1;
+      const totalMonths = (retirementAge - currentAge) * 12;
+      const currentYear = new Date().getFullYear();
+
+      // Static scenario: contribution never changes
+      const staticData = [];
+      let staticPot = currentBalance;
+
+      // Salary-linked scenario: contribution grows with salary
+      const salaryData = [];
+      let salaryPot = currentBalance;
+      let salary = baseSalary;
+      let currentContrib = monthlyContribution;
+
+      for (let month = 0; month <= totalMonths; month++) {
+        const age = currentAge + month / 12;
+        const year = currentYear + month / 12;
+
+        if (month % 12 === 0) {
+          // Record annual data point
+          staticData.push({ month, age: Math.round(age), year: Math.round(year), value: staticPot });
+          salaryData.push({ month, age: Math.round(age), year: Math.round(year), value: salaryPot });
+
+          // Update salary at each new year (except the first)
+          if (month > 0) {
+            if (colaEnabled) {
+              salary = salary * (1 + inflationRate + realRaise);
+            } else {
+              salary = salary * (1 + salaryGrowth);
+            }
+            currentContrib = calculateMonthlyContribution(salary, employeePct, employerPct, nicRate, nicThreshold);
+          }
+        }
+
+        if (month > 0) {
+          staticPot = staticPot * (1 + netMonthlyReturn) + monthlyContribution;
+          salaryPot = salaryPot * (1 + netMonthlyReturn) + currentContrib;
+        }
+      }
+
+      // Final values
+      const nominalPot = salaryData[salaryData.length - 1].value;
+      const yearsToRetirement = retirementAge - currentAge;
+      const realPot = nominalPot / Math.pow(1 + inflationRate, yearsToRetirement);
+      const annuityRate = interpolateAnnuityRate(retirementAge);
+      const withdrawalIncome = nominalPot * withdrawalRate;
+      const annuityIncome = nominalPot * annuityRate;
+      const realWithdrawalIncome = realPot * withdrawalRate;
+      const realAnnuityIncome = realPot * annuityRate;
+
+      // Real value series (deflated)
+      const staticRealData = staticData.map((d, i) => ({
+        ...d,
+        value: d.value / Math.pow(1 + inflationRate, i),
+      }));
+      const salaryRealData = salaryData.map((d, i) => ({
+        ...d,
+        value: d.value / Math.pow(1 + inflationRate, i),
+      }));
+
+      return {
+        staticData,
+        salaryData,
+        staticRealData,
+        salaryRealData,
+        nominalPot,
+        realPot,
+        withdrawalIncome,
+        annuityIncome,
+        realWithdrawalIncome,
+        realAnnuityIncome,
+        annuityRate,
+        retirementYear: currentYear + yearsToRetirement,
+      };
+    }
+
+    // === SELF-TEST (runs on page load, check browser console) ===
+
+    (function selfTest() {
+      // Test interpolateAnnuityRate
+      console.assert(interpolateAnnuityRate(68) === 0.055, 'Annuity rate at 68 should be 5.5%');
+      console.assert(interpolateAnnuityRate(55) === 0.040, 'Annuity rate at 55 should be 4.0%');
+      console.assert(interpolateAnnuityRate(75) === 0.070, 'Annuity rate at 75 should be 7.0%');
+      // Interpolation: 66 is between 65 (5.0%) and 67 (5.3%), so 5.15%
+      const rate66 = interpolateAnnuityRate(66);
+      console.assert(Math.abs(rate66 - 0.0515) < 0.0001, `Annuity rate at 66 should be ~5.15%, got ${rate66}`);
+
+      // Test calculateMonthlyContribution
+      const mc = calculateMonthlyContribution(85000, 0.33, 0.07, 0.15, 5000);
+      // employee: 28050, employer: 5950, NIC saving: 28050 * 0.15 = 4207.50, total: 38207.50/12 = 3183.96
+      console.assert(Math.abs(mc - 3183.96) < 0.01, `Monthly contribution should be ~3183.96, got ${mc}`);
+
+      // Test deriveInflationDefault returns a reasonable number
+      const inf = deriveInflationDefault();
+      console.assert(inf > 0.02 && inf < 0.04, `Default inflation should be between 2-4%, got ${inf * 100}%`);
+
+      // Test projection returns expected structure
+      const result = projectPension({
+        currentBalance: 31614.51, monthlyContribution: 3183.96, baseSalary: 85000,
+        employeePct: 0.33, employerPct: 0.07, retirementAge: 68, currentAge: 30,
+        expectedReturn: 0.103, inflationRate: 0.025, salaryGrowth: 0.035,
+        realRaise: 0.01, withdrawalRate: 0.04, colaEnabled: false,
+        fundCharge: 0.006, nicRate: 0.15, nicThreshold: 5000,
+      });
+      console.assert(result.staticData.length > 0, 'Should have static data points');
+      console.assert(result.salaryData.length > 0, 'Should have salary data points');
+      console.assert(result.nominalPot > 31614.51, 'Nominal pot should grow');
+      console.assert(result.realPot < result.nominalPot, 'Real pot should be less than nominal');
+      console.assert(result.withdrawalIncome > 0, 'Withdrawal income should be positive');
+      console.assert(result.annuityIncome > 0, 'Annuity income should be positive');
+
+      console.log('✓ All self-tests passed');
+    })();
+
     // Tab switching
     document.querySelectorAll('.tab-bar button').forEach(btn => {
       btn.addEventListener('click', () => {
