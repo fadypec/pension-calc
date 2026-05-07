@@ -396,7 +396,7 @@
       <div class="sub" id="card-pot-sub">Age 68 · Year 2064</div>
     </div>
     <div class="summary-card green">
-      <div class="label">Annual Income (<span id="card-income-rate">4%</span>)</div>
+      <div class="label">Annual Income (<span id="card-income-rate">4%</span>) — Today's £</div>
       <div class="value" id="card-income">—</div>
       <div class="sub" id="card-income-sub">—/month</div>
     </div>
@@ -406,7 +406,7 @@
       <div class="sub">After inflation erosion</div>
     </div>
     <div class="summary-card purple">
-      <div class="label">Annuity Estimate</div>
+      <div class="label">Annuity Estimate — Today's £</div>
       <div class="value" id="card-annuity">—</div>
       <div class="sub">Guaranteed for life</div>
     </div>
@@ -945,11 +945,12 @@
     function updateSummaryCards(result) {
       document.getElementById('card-pot').textContent = formatCurrency(result.nominalPot);
       document.getElementById('card-pot-sub').textContent = `Age ${state.retirementAge} · Year ${result.retirementYear}`;
-      document.getElementById('card-income').textContent = formatCurrency(result.withdrawalIncome);
+      document.getElementById('card-income').textContent = formatCurrency(result.realWithdrawalIncome);
       document.getElementById('card-income-rate').textContent = (state.withdrawalRate * 100).toFixed(0) + '%';
-      document.getElementById('card-income-sub').textContent = formatCurrency(result.withdrawalIncome / 12) + '/month';
+      document.getElementById('card-income-sub').textContent = formatCurrency(result.realWithdrawalIncome / 12) + '/month (today\'s £)';
       document.getElementById('card-real').textContent = formatCurrency(result.realPot);
-      document.getElementById('card-annuity').textContent = formatCurrency(result.annuityIncome) + '/yr';
+      document.getElementById('card-annuity').textContent = formatCurrency(result.realAnnuityIncome) + '/yr';
+
     }
 
     let growthChart = null;
