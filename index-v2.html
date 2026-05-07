@@ -475,9 +475,9 @@
 <div class="sidebar-section">
   <div class="sidebar-section-title">Assumptions</div>
   <div class="control-group">
-    <div class="control-label"><span>Expected Return</span><span class="control-value" id="val-return">10.3%</span></div>
-    <input type="range" id="slider-return" min="0" max="15" step="0.1" value="10.3">
-    <div class="control-hint">Fund 5yr avg: 10.3% · 10yr: 12.2%</div>
+    <div class="control-label"><span>Expected Return</span><span class="control-value" id="val-return">9.1%</span></div>
+    <input type="range" id="slider-return" min="0" max="15" step="0.1" value="9.1">
+    <div class="control-hint">Long-term est: 9.1% · Fund 10yr: 12.2% · 5yr: 10.3%</div>
   </div>
   <div class="control-group">
     <div class="control-label"><span>Inflation (CPIH)</span><span class="control-value" id="val-inflation">2.5%</span></div>
@@ -628,8 +628,62 @@
           Aviva Pensions International Index Tracking S2.<br>
           <strong>Source:</strong> Aviva Fund Factsheet TM10024, April 2026.<br>
           Benchmark: FTSE World ex UK. Total fund charge (OCF): 0.60%.<br>
-          5-year cumulative return: 63.13% (~10.3% annualised).<br>
-          10-year cumulative return: 215.51% (~12.2% annualised).
+          <strong>Note:</strong> All fund returns below are already net of the 0.60% fund charge.
+        </p>
+        <table style="width:100%; font-size:12px; margin:10px 0; border-collapse:collapse;">
+          <tr style="border-bottom:1px solid var(--border);">
+            <th style="text-align:left; padding:4px 8px; color:var(--text-secondary);">Horizon</th>
+            <th style="text-align:right; padding:4px 8px; color:var(--text-secondary);">Cumulative</th>
+            <th style="text-align:right; padding:4px 8px; color:var(--text-secondary);">Annualised</th>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:4px 8px;">1 year</td>
+            <td style="text-align:right; padding:4px 8px;">16.30%</td>
+            <td style="text-align:right; padding:4px 8px;">16.30%</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:4px 8px;">3 years</td>
+            <td style="text-align:right; padding:4px 8px;">47.99%</td>
+            <td style="text-align:right; padding:4px 8px;">13.97%</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:4px 8px;">5 years</td>
+            <td style="text-align:right; padding:4px 8px;">63.13%</td>
+            <td style="text-align:right; padding:4px 8px;">10.28%</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:4px 8px;">10 years</td>
+            <td style="text-align:right; padding:4px 8px;">215.51%</td>
+            <td style="text-align:right; padding:4px 8px;">12.17%</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 8px;">25yr+ (est.)</td>
+            <td style="text-align:right; padding:4px 8px; color:var(--text-muted);">—</td>
+            <td style="text-align:right; padding:4px 8px;">~9.1%</td>
+          </tr>
+        </table>
+        <p>
+          <strong>25yr+ estimate:</strong> No 25-year data on the Aviva factsheet (fund launched Dec 1997).
+          The MSCI World Index (GBP) returned 9.74% annualised (gross) over 37 years (Dec 1987–Dec 2024),
+          per the <a href="https://www.msci.com/www/index-factsheets/msci-world-index/0137882852" target="_blank" rel="noopener">MSCI World Index (GBP) factsheet</a>.
+          After deducting the fund's 0.60% OCF, this gives an estimated long-term net return of ~9.1%.
+          This is used as the default expected return as it better reflects a 38-year investment horizon
+          than the shorter-period figures.
+        </p>
+      </div>
+      <div class="source-item">
+        <h4>Converting Cumulative Returns to Annualised Returns</h4>
+        <p>
+          Cumulative returns are converted to annualised (compound annual growth rate) using:<br><br>
+          <code style="background:var(--bg-primary); padding:8px 12px; border-radius:4px; display:block; font-size:13px; line-height:1.6;">
+            Annualised Return = (1 + Cumulative Return)<sup>1/N</sup> − 1
+          </code><br>
+          Where <em>N</em> is the number of years. For example, a 5-year cumulative return of 63.13%:<br><br>
+          <code style="background:var(--bg-primary); padding:8px 12px; border-radius:4px; display:block; font-size:13px; line-height:1.6;">
+            (1 + 0.6313)<sup>1/5</sup> − 1 = (1.6313)<sup>0.2</sup> − 1 = 0.1028 = 10.28%
+          </code><br>
+          This accounts for the effect of compounding — a 63.13% total return over 5 years is equivalent to
+          10.28% per year compounded, not simply 63.13% ÷ 5 = 12.63%.
         </p>
       </div>
       <div class="source-item">
@@ -670,12 +724,19 @@
     ];
 
     // Fund data (Aviva Pensions International Index Tracking, April 2026 factsheet TM10024)
+    // NOTE: Fund returns from factsheet are ALREADY NET of the 0.60% charge.
+    // Annualised from cumulative: rate = (1 + cumulative)^(1/years) - 1
     const FUND = {
       name: 'Aviva Pensions International Index Tracking S2',
-      charge: 0.006, // 0.60% OCF
+      charge: 0.006, // 0.60% OCF — display only, NOT subtracted from returns (already deducted)
       benchmark: 'FTSE World ex UK',
-      return5yr: 0.1030, // 5-year annualised
-      return10yr: 0.1220, // 10-year annualised
+      return1yr: 0.1630,  // 1yr cumulative 16.30% → 16.30% annualised (net of charges)
+      return3yr: 0.1397,  // 3yr cumulative 47.99% → (1.4799)^(1/3)-1 = 13.97% annualised
+      return5yr: 0.1028,  // 5yr cumulative 63.13% → (1.6313)^(1/5)-1 = 10.28% annualised
+      return10yr: 0.1217, // 10yr cumulative 215.51% → (3.1551)^(1/10)-1 = 12.17% annualised
+      // No 25yr data on Aviva factsheet. MSCI World (GBP) since Dec 1987 (37yr): 9.74% gross.
+      // After ~0.60% charge, proxy long-term net return: ~9.1%
+      returnLongTerm: 0.091, // estimated 25yr+ net return (MSCI World GBP gross 9.74% minus ~0.6% charge)
     };
 
     // Defaults
@@ -687,7 +748,7 @@
       employerContribPct: 0.07,
       retirementAge: 68,
       currentAge: 30,
-      expectedReturn: 0.103,
+      expectedReturn: 0.091, // long-term net estimate (see FUND comments)
       inflationRate: null, // derived from CPIH_DATA
       salaryGrowth: 0.035,
       realRaise: 0.01,
@@ -743,7 +804,9 @@
         salaryCapEnabled, salaryCap, capYears,
       } = params;
 
-      const netAnnualReturn = expectedReturn - fundCharge;
+      // Fund charge is NOT subtracted here — the expected return is already net of charges
+      // (Aviva factsheet performance figures have the 0.60% OCF already deducted)
+      const netAnnualReturn = expectedReturn;
       const netMonthlyReturn = Math.pow(1 + netAnnualReturn, 1/12) - 1;
       const totalMonths = (retirementAge - currentAge) * 12;
       const currentYear = new Date().getFullYear();
@@ -859,7 +922,7 @@
       const result = projectPension({
         currentBalance: 31614.51, monthlyContribution: 3183.96, baseSalary: 85000,
         employeePct: 0.33, employerPct: 0.07, retirementAge: 68, currentAge: 30,
-        expectedReturn: 0.103, inflationRate: 0.025, salaryGrowth: 0.035,
+        expectedReturn: 0.091, inflationRate: 0.025, salaryGrowth: 0.035,
         realRaise: 0.01, withdrawalRate: 0.04, colaEnabled: false,
         fundCharge: 0.006, nicRate: 0.15, nicThreshold: 5000,
         salaryCapEnabled: false, salaryCap: 150000, capYears: 15,
