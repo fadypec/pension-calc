@@ -1094,13 +1094,18 @@
       const ctx = document.getElementById('chart-real-value').getContext('2d');
       const labels = result.salaryRealData.map(d => d.age);
 
+      // Dataset order matters for fill targeting:
+      // 0: Nominal (salary-linked)  — dashed blue, filled down to dataset 2 (real salary-linked)
+      // 1: Nominal (static)         — dashed green, filled down to dataset 3 (real static)
+      // 2: Real value (salary-linked) — solid amber
+      // 3: Real value (static)        — solid green dashed
       const datasets = [
         {
           label: 'Nominal (salary-linked)',
           data: result.salaryData.map(d => d.value),
-          borderColor: 'rgba(59, 130, 246, 0.3)',
-          backgroundColor: 'transparent',
-          fill: false,
+          borderColor: 'rgba(59, 130, 246, 0.35)',
+          backgroundColor: 'rgba(239, 68, 68, 0.08)',
+          fill: '+2', // fill down to dataset index 0+2 = dataset 2 (real salary-linked)
           tension: 0.3,
           borderWidth: 1.5,
           borderDash: [4, 4],
@@ -1109,11 +1114,24 @@
           pointHoverBackgroundColor: 'rgba(59, 130, 246, 0.5)',
         },
         {
+          label: 'Nominal (static)',
+          data: result.staticData.map(d => d.value),
+          borderColor: 'rgba(16, 185, 129, 0.35)',
+          backgroundColor: 'rgba(239, 68, 68, 0.08)',
+          fill: '+2', // fill down to dataset index 1+2 = dataset 3 (real static)
+          tension: 0.3,
+          borderWidth: 1.5,
+          borderDash: [4, 4],
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: 'rgba(16, 185, 129, 0.5)',
+        },
+        {
           label: 'Real value (salary-linked)',
           data: result.salaryRealData.map(d => d.value),
           borderColor: '#f59e0b',
-          backgroundColor: 'rgba(245, 158, 11, 0.12)',
-          fill: true,
+          backgroundColor: 'transparent',
+          fill: false,
           tension: 0.3,
           borderWidth: 2.5,
           pointRadius: 0,
@@ -1124,25 +1142,14 @@
           label: 'Real value (static)',
           data: result.staticRealData.map(d => d.value),
           borderColor: '#10b981',
-          backgroundColor: 'rgba(16, 185, 129, 0.08)',
-          fill: true,
+          backgroundColor: 'transparent',
+          fill: false,
           tension: 0.3,
           borderWidth: 2.5,
           borderDash: [6, 4],
           pointRadius: 0,
           pointHoverRadius: 5,
           pointHoverBackgroundColor: '#10b981',
-        },
-        {
-          label: 'Inflation erosion',
-          data: result.salaryData.map((d, i) => d.value - result.salaryRealData[i].value),
-          borderColor: 'transparent',
-          backgroundColor: 'rgba(239, 68, 68, 0.10)',
-          fill: true,
-          tension: 0.3,
-          borderWidth: 0,
-          pointRadius: 0,
-          pointHoverRadius: 0,
         },
       ];
 
@@ -1160,7 +1167,6 @@
                 color: '#94a3b8',
                 usePointStyle: true,
                 padding: 20,
-                filter: (item) => item.text !== 'Inflation erosion',
               },
             },
             tooltip: {
@@ -1177,9 +1183,6 @@
                   return `Age ${d.age} (${d.year})`;
                 },
                 label: (item) => {
-                  if (item.dataset.label === 'Inflation erosion') {
-                    return ` Purchasing power lost: ${formatCurrencyFull(item.raw)}`;
-                  }
                   return ` ${item.dataset.label}: ${formatCurrencyFull(item.raw)}`;
                 },
               },
@@ -1197,7 +1200,7 @@
                 color: '#64748b',
                 callback: (val) => formatCurrency(val),
               },
-              title: { display: true, text: "Value (Today's £)", color: '#64748b' },
+              title: { display: true, text: 'Pot Value', color: '#64748b' },
             },
           },
         },
@@ -1212,16 +1215,16 @@
     }
 
     function updateIncomeTab(result) {
-      // Headline figures
-      document.getElementById('income-withdrawal-amount').textContent = formatCurrency(result.withdrawalIncome) + '/yr';
+      // Headline figures — show real (today's £) values to match summary cards
+      document.getElementById('income-withdrawal-amount').textContent = formatCurrency(result.realWithdrawalIncome) + '/yr';
       document.getElementById('income-withdrawal-label').textContent =
-        (state.withdrawalRate * 100).toFixed(1) + '% Withdrawal Rule';
+        (state.withdrawalRate * 100).toFixed(1) + '% Withdrawal Rule (today\'s £)';
       document.getElementById('income-withdrawal-monthly').textContent =
-        formatCurrency(result.withdrawalIncome / 12) + '/month';
+        formatCurrency(result.realWithdrawalIncome / 12) + '/month';
 
-      document.getElementById('income-annuity-amount').textContent = formatCurrency(result.annuityIncome) + '/yr';
+      document.getElementById('income-annuity-amount').textContent = formatCurrency(result.realAnnuityIncome) + '/yr';
       document.getElementById('income-annuity-monthly').textContent =
-        formatCurrency(result.annuityIncome / 12) + '/month';
+        formatCurrency(result.realAnnuityIncome / 12) + '/month (today\'s £)';
 
       // Detail cards
       document.getElementById('detail-wr-nominal').textContent = formatCurrencyFull(result.withdrawalIncome);
