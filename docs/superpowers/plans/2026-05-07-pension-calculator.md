@@ -1,0 +1,1694 @@
+# Pension Growth Calculator Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Build a single-file HTML pension growth calculator with interactive sliders, CPIH-based inflation modelling, salary-linked contribution projections, and retirement income estimates.
+
+**Architecture:** Single `index.html` file containing all CSS, JS, and markup. Chart.js loaded from CDN. Calculation engine as pure functions at the top of the `<script>` block, UI wiring below. Inline console assertions verify calculation correctness on page load.
+
+**Tech Stack:** HTML5, vanilla JavaScript, CSS3, Chart.js (CDN)
+
+**Spec:** `docs/superpowers/specs/2026-05-07-pension-calculator-design.md`
+
+---
+
+## File Structure
+
+Single file: `index.html`
+
+Internal organisation (top to bottom):
+1. `<style>` — all CSS (theme, layout, sidebar, cards, tabs, charts, responsive, footer)
+2. `<body>` — HTML structure (summary cards → sidebar + tabbed main area → footer)
+3. `<script>` — embedded data → calculation engine → UI wiring → chart rendering → event handlers
+
+---
+
+### Task 1: HTML Skeleton + Dark Theme CSS
+
+**Files:**
+- Create: `index.html`
+
+- [ ] **Step 1: Create the base HTML file with dark theme CSS**
+
+Create `index.html` with:
+- DOCTYPE, charset, viewport meta, title "Pension Growth Calculator"
+- Chart.js CDN script tag
+- `<style>` block with CSS custom properties for the dark theme
+- CSS for: body reset, grid layout (sidebar + main), summary cards row, tab bar, footer
+- Empty structural `<div>`s for: `.summary-cards`, `.sidebar`, `.main`, `.tab-bar`, `.tab-content`, `.footer`
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pension Growth Calculator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #e2e8f0;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --border: #334155;
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-purple: #a855f7;
+      --font: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      padding: 16px;
+      background: var(--bg-secondary);
+    }
+
+    .summary-card {
+      border-radius: 10px;
+      padding: 16px;
+      min-height: 90px;
+    }
+    .summary-card.blue { background: linear-gradient(135deg, #1e40af, #3b82f6); }
+    .summary-card.green { background: linear-gradient(135deg, #065f46, #10b981); }
+    .summary-card.amber { background: linear-gradient(135deg, #92400e, #f59e0b); }
+    .summary-card.purple { background: linear-gradient(135deg, #581c87, #a855f7); }
+
+    .summary-card .label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.8;
+    }
+    .summary-card .value {
+      font-size: 26px;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .summary-card .sub {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .sidebar {
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      padding: 20px;
+      overflow-y: auto;
+      max-height: calc(100vh - 120px);
+    }
+
+    .sidebar-section {
+      margin-bottom: 20px;
+    }
+
+    .sidebar-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .control-group {
+      margin-bottom: 16px;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .control-label span:first-child { color: var(--text-secondary); }
+    .control-label .control-value { color: var(--accent-blue); font-weight: 600; }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 4px;
+      background: var(--bg-tertiary);
+      outline: none;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+      cursor: pointer;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+      cursor: pointer;
+      border: none;
+    }
+
+    .text-input {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: var(--font);
+    }
+    .text-input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .checkbox-group input[type="checkbox"] {
+      accent-color: var(--accent-blue);
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .control-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .static-info {
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+      margin-top: 8px;
+    }
+    .static-info .info-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+    .static-info .info-line {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.8;
+    }
+
+    .main {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .tab-bar {
+      display: flex;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+    .tab-bar button {
+      padding: 12px 24px;
+      font-size: 13px;
+      font-weight: 600;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: var(--font);
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .tab-bar button:hover { color: var(--text-secondary); }
+    .tab-bar button.active {
+      color: var(--accent-blue);
+      border-bottom-color: var(--accent-blue);
+    }
+
+    .tab-content {
+      flex: 1;
+      padding: 24px;
+      display: none;
+    }
+    .tab-content.active { display: block; }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+      max-height: 500px;
+    }
+
+    /* Income tab specific */
+    .income-comparison {
+      display: flex;
+      gap: 32px;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 0;
+    }
+    .income-block { text-align: center; }
+    .income-block .amount {
+      font-size: 36px;
+      font-weight: 700;
+    }
+    .income-block .amount.blue { color: var(--accent-blue); }
+    .income-block .amount.purple { color: var(--accent-purple); }
+    .income-block .income-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+    .income-block .income-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .income-vs {
+      font-size: 20px;
+      color: var(--text-muted);
+    }
+    .income-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+    .income-detail-card {
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .income-detail-card h4 {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .income-detail-card .detail-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .income-detail-card .detail-row:last-child { border-bottom: none; }
+    .income-detail-card .detail-row .detail-label { color: var(--text-muted); }
+    .income-detail-card .detail-row .detail-value { color: var(--text-primary); font-weight: 500; }
+
+    /* Footer */
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .footer a, .footer button {
+      color: var(--accent-blue);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: var(--font);
+      text-decoration: none;
+    }
+    .footer a:hover, .footer button:hover { text-decoration: underline; }
+
+    /* Data sources modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 24px;
+    }
+    .modal h3 {
+      font-size: 16px;
+      margin-bottom: 16px;
+    }
+    .modal .source-item {
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal .source-item:last-child { border-bottom: none; }
+    .modal .source-item h4 {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .modal .source-item p {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .modal .source-item a {
+      color: var(--accent-blue);
+      font-size: 12px;
+    }
+    .modal-close {
+      float: right;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .summary-cards { grid-template-columns: repeat(2, 1fr); }
+      .dashboard { grid-template-columns: 1fr; }
+      .sidebar {
+        max-height: none;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Summary Cards -->
+  <div class="summary-cards">
+    <div class="summary-card blue">
+      <div class="label">Pot at Retirement</div>
+      <div class="value" id="card-pot">—</div>
+      <div class="sub" id="card-pot-sub">Age 68 · Year 2064</div>
+    </div>
+    <div class="summary-card green">
+      <div class="label">Annual Income (<span id="card-income-rate">4%</span>)</div>
+      <div class="value" id="card-income">—</div>
+      <div class="sub" id="card-income-sub">—/month</div>
+    </div>
+    <div class="summary-card amber">
+      <div class="label">Real Value (Today's £)</div>
+      <div class="value" id="card-real">—</div>
+      <div class="sub">After inflation erosion</div>
+    </div>
+    <div class="summary-card purple">
+      <div class="label">Annuity Estimate</div>
+      <div class="value" id="card-annuity">—</div>
+      <div class="sub">Guaranteed for life</div>
+    </div>
+  </div>
+
+  <!-- Dashboard: Sidebar + Main -->
+  <div class="dashboard">
+    <div class="sidebar" id="sidebar">
+      <!-- Controls will be added in Task 3 -->
+    </div>
+    <div class="main">
+      <div class="tab-bar">
+        <button class="active" data-tab="growth">Growth</button>
+        <button data-tab="real-value">Real Value</button>
+        <button data-tab="income">Income</button>
+      </div>
+      <div class="tab-content active" id="tab-growth">
+        <div class="chart-container">
+          <canvas id="chart-growth"></canvas>
+        </div>
+      </div>
+      <div class="tab-content" id="tab-real-value">
+        <div class="chart-container">
+          <canvas id="chart-real-value"></canvas>
+        </div>
+      </div>
+      <div class="tab-content" id="tab-income">
+        <!-- Income content added in Task 7 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div>
+      <button id="btn-sources">Data Sources</button>
+      <span style="margin: 0 8px;">·</span>
+      <button id="btn-download">Download Data (CSV)</button>
+    </div>
+    <div>This is a projection tool, not financial advice. Past performance is not a guide to future performance.</div>
+  </div>
+
+  <!-- Data Sources Modal -->
+  <div class="modal-overlay" id="modal-sources">
+    <div class="modal">
+      <button class="modal-close" id="btn-close-modal">×</button>
+      <h3>Data Sources</h3>
+      <!-- Sources added in Task 8 -->
+    </div>
+  </div>
+
+  <script>
+    // All JavaScript will be added in subsequent tasks
+  </script>
+</body>
+</html>
+```
+
+- [ ] **Step 2: Open in browser and verify layout**
+
+Open `index.html` in a browser. Verify:
+- Dark theme renders correctly
+- 4 summary cards in a row (showing "—" placeholders)
+- Sidebar + main area grid layout
+- Tab bar with 3 buttons, "Growth" active
+- Footer at bottom
+- On narrow window (<768px), sidebar stacks above main, cards go to 2×2
+
+- [ ] **Step 3: Verify tab switching works**
+
+Add basic tab switching at the bottom of the `<script>` block:
+
+```javascript
+// Tab switching
+document.querySelectorAll('.tab-bar button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+```
+
+Click each tab — content area should switch. Only "Growth" tab has a canvas for now.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add HTML skeleton with dark theme CSS and layout"
+```
+
+---
+
+### Task 2: Embedded Data + Calculation Engine
+
+**Files:**
+- Modify: `index.html` (inside `<script>` block, before tab switching code)
+
+- [ ] **Step 1: Add embedded data**
+
+Add these data objects at the top of the `<script>` block:
+
+```javascript
+// === EMBEDDED DATA ===
+
+// CPIH annual rates 1990-2025 (ONS series L55O)
+const CPIH_DATA = [
+  { year: 1990, rate: 7.7 }, { year: 1991, rate: 7.5 }, { year: 1992, rate: 4.3 },
+  { year: 1993, rate: 2.6 }, { year: 1994, rate: 2.0 }, { year: 1995, rate: 2.7 },
+  { year: 1996, rate: 2.7 }, { year: 1997, rate: 2.3 }, { year: 1998, rate: 2.0 },
+  { year: 1999, rate: 1.4 }, { year: 2000, rate: 1.2 }, { year: 2001, rate: 1.5 },
+  { year: 2002, rate: 1.5 }, { year: 2003, rate: 1.4 }, { year: 2004, rate: 1.5 },
+  { year: 2005, rate: 2.2 }, { year: 2006, rate: 2.8 }, { year: 2007, rate: 2.5 },
+  { year: 2008, rate: 3.8 }, { year: 2009, rate: 2.0 }, { year: 2010, rate: 2.6 },
+  { year: 2011, rate: 3.8 }, { year: 2012, rate: 2.6 }, { year: 2013, rate: 2.3 },
+  { year: 2014, rate: 1.5 }, { year: 2015, rate: 0.4 }, { year: 2016, rate: 1.2 },
+  { year: 2017, rate: 2.6 }, { year: 2018, rate: 2.3 }, { year: 2019, rate: 1.8 },
+  { year: 2020, rate: 1.0 }, { year: 2021, rate: 3.2 }, { year: 2022, rate: 7.9 },
+  { year: 2023, rate: 5.2 }, { year: 2024, rate: 3.2 }, { year: 2025, rate: 2.8 },
+];
+
+// Annuity rates by retirement age (single life, level, approximate 2026 UK market)
+const ANNUITY_RATES = [
+  { age: 55, rate: 0.040 }, { age: 58, rate: 0.043 }, { age: 60, rate: 0.045 },
+  { age: 62, rate: 0.048 }, { age: 65, rate: 0.050 }, { age: 67, rate: 0.053 },
+  { age: 68, rate: 0.055 }, { age: 70, rate: 0.060 }, { age: 75, rate: 0.070 },
+];
+
+// Fund data (Aviva Pensions International Index Tracking, April 2026 factsheet TM10024)
+const FUND = {
+  name: 'Aviva Pensions International Index Tracking S2',
+  charge: 0.006, // 0.60% OCF
+  benchmark: 'FTSE World ex UK',
+  return5yr: 0.1030, // 5-year annualised
+  return10yr: 0.1220, // 10-year annualised
+};
+
+// Defaults
+const DEFAULTS = {
+  currentBalance: 31614.51,
+  monthlyContribution: 3183.96,
+  baseSalary: 85000,
+  employeeContribPct: 0.33,
+  employerContribPct: 0.07,
+  retirementAge: 68,
+  currentAge: 30,
+  expectedReturn: 0.103,
+  inflationRate: null, // derived from CPIH_DATA
+  salaryGrowth: 0.035,
+  realRaise: 0.01,
+  withdrawalRate: 0.04,
+  colaEnabled: false,
+  employerNicRate: 0.15,
+  nicSecondaryThreshold: 5000,
+};
+
+// Derive default inflation from CPIH mean
+DEFAULTS.inflationRate = CPIH_DATA.reduce((sum, d) => sum + d.rate, 0) / CPIH_DATA.length / 100;
+```
+
+**Important note on CPIH data:** These rates MUST be verified against the actual ONS L55O series before shipping. The values above are approximate and should be cross-checked. The engineer implementing this task should fetch the latest data from the ONS website and update the array if any values differ. The ONS series can be found at: https://www.ons.gov.uk/economy/inflationandpriceindices/timeseries/l55o/mm23
+
+- [ ] **Step 2: Add calculation functions**
+
+Add below the data:
+
+```javascript
+// === CALCULATION ENGINE ===
+
+function deriveInflationDefault() {
+  const mean = CPIH_DATA.reduce((sum, d) => sum + d.rate, 0) / CPIH_DATA.length;
+  return mean / 100; // convert percentage to decimal
+}
+
+function interpolateAnnuityRate(age) {
+  if (age <= ANNUITY_RATES[0].age) return ANNUITY_RATES[0].rate;
+  if (age >= ANNUITY_RATES[ANNUITY_RATES.length - 1].age) return ANNUITY_RATES[ANNUITY_RATES.length - 1].rate;
+  for (let i = 0; i < ANNUITY_RATES.length - 1; i++) {
+    const lower = ANNUITY_RATES[i];
+    const upper = ANNUITY_RATES[i + 1];
+    if (age >= lower.age && age <= upper.age) {
+      const t = (age - lower.age) / (upper.age - lower.age);
+      return lower.rate + t * (upper.rate - lower.rate);
+    }
+  }
+  return ANNUITY_RATES[ANNUITY_RATES.length - 1].rate;
+}
+
+function calculateMonthlyContribution(salary, employeePct, employerPct, nicRate, nicThreshold) {
+  const employeeAmount = salary * employeePct;
+  const employerAmount = salary * employerPct;
+  // NIC saving: employer saves NIC on the salary sacrifice amount
+  const sacrificeAmount = salary * employeePct;
+  const nicSaving = sacrificeAmount * nicRate;
+  const totalAnnual = employeeAmount + employerAmount + nicSaving;
+  return totalAnnual / 12;
+}
+
+function projectPension(params) {
+  const {
+    currentBalance, monthlyContribution, baseSalary,
+    employeePct, employerPct, retirementAge, currentAge,
+    expectedReturn, inflationRate, salaryGrowth, realRaise,
+    withdrawalRate, colaEnabled, fundCharge, nicRate, nicThreshold,
+  } = params;
+
+  const netAnnualReturn = expectedReturn - fundCharge;
+  const netMonthlyReturn = Math.pow(1 + netAnnualReturn, 1/12) - 1;
+  const totalMonths = (retirementAge - currentAge) * 12;
+  const currentYear = new Date().getFullYear();
+
+  // Static scenario: contribution never changes
+  const staticData = [];
+  let staticPot = currentBalance;
+
+  // Salary-linked scenario: contribution grows with salary
+  const salaryData = [];
+  let salaryPot = currentBalance;
+  let salary = baseSalary;
+  let currentContrib = monthlyContribution;
+
+  for (let month = 0; month <= totalMonths; month++) {
+    const age = currentAge + month / 12;
+    const year = currentYear + month / 12;
+
+    if (month % 12 === 0) {
+      // Record annual data point
+      staticData.push({ month, age: Math.round(age), year: Math.round(year), value: staticPot });
+      salaryData.push({ month, age: Math.round(age), year: Math.round(year), value: salaryPot });
+
+      // Update salary at each new year (except the first)
+      if (month > 0) {
+        if (colaEnabled) {
+          salary = salary * (1 + inflationRate + realRaise);
+        } else {
+          salary = salary * (1 + salaryGrowth);
+        }
+        currentContrib = calculateMonthlyContribution(salary, employeePct, employerPct, nicRate, nicThreshold);
+      }
+    }
+
+    if (month > 0) {
+      staticPot = staticPot * (1 + netMonthlyReturn) + monthlyContribution;
+      salaryPot = salaryPot * (1 + netMonthlyReturn) + currentContrib;
+    }
+  }
+
+  // Final values
+  const nominalPot = salaryData[salaryData.length - 1].value;
+  const yearsToRetirement = retirementAge - currentAge;
+  const realPot = nominalPot / Math.pow(1 + inflationRate, yearsToRetirement);
+  const annuityRate = interpolateAnnuityRate(retirementAge);
+  const withdrawalIncome = nominalPot * withdrawalRate;
+  const annuityIncome = nominalPot * annuityRate;
+  const realWithdrawalIncome = realPot * withdrawalRate;
+  const realAnnuityIncome = realPot * annuityRate;
+
+  // Real value series (deflated)
+  const staticRealData = staticData.map((d, i) => ({
+    ...d,
+    value: d.value / Math.pow(1 + inflationRate, i),
+  }));
+  const salaryRealData = salaryData.map((d, i) => ({
+    ...d,
+    value: d.value / Math.pow(1 + inflationRate, i),
+  }));
+
+  return {
+    staticData,
+    salaryData,
+    staticRealData,
+    salaryRealData,
+    nominalPot,
+    realPot,
+    withdrawalIncome,
+    annuityIncome,
+    realWithdrawalIncome,
+    realAnnuityIncome,
+    annuityRate,
+    retirementYear: currentYear + yearsToRetirement,
+  };
+}
+```
+
+- [ ] **Step 3: Add console assertions to verify calculations**
+
+Add below the calculation functions:
+
+```javascript
+// === SELF-TEST (runs on page load, check browser console) ===
+
+(function selfTest() {
+  // Test interpolateAnnuityRate
+  console.assert(interpolateAnnuityRate(68) === 0.055, 'Annuity rate at 68 should be 5.5%');
+  console.assert(interpolateAnnuityRate(55) === 0.040, 'Annuity rate at 55 should be 4.0%');
+  console.assert(interpolateAnnuityRate(75) === 0.070, 'Annuity rate at 75 should be 7.0%');
+  // Interpolation: 66 is between 65 (5.0%) and 67 (5.3%), so 5.15%
+  const rate66 = interpolateAnnuityRate(66);
+  console.assert(Math.abs(rate66 - 0.0515) < 0.0001, `Annuity rate at 66 should be ~5.15%, got ${rate66}`);
+
+  // Test calculateMonthlyContribution
+  const mc = calculateMonthlyContribution(85000, 0.33, 0.07, 0.15, 5000);
+  // employee: 28050, employer: 5950, NIC saving: 28050 * 0.15 = 4207.50, total: 38207.50/12 = 3183.96
+  console.assert(Math.abs(mc - 3183.96) < 0.01, `Monthly contribution should be ~3183.96, got ${mc}`);
+
+  // Test deriveInflationDefault returns a reasonable number
+  const inf = deriveInflationDefault();
+  console.assert(inf > 0.02 && inf < 0.04, `Default inflation should be between 2-4%, got ${inf * 100}%`);
+
+  // Test projection returns expected structure
+  const result = projectPension({
+    currentBalance: 31614.51, monthlyContribution: 3183.96, baseSalary: 85000,
+    employeePct: 0.33, employerPct: 0.07, retirementAge: 68, currentAge: 30,
+    expectedReturn: 0.103, inflationRate: 0.025, salaryGrowth: 0.035,
+    realRaise: 0.01, withdrawalRate: 0.04, colaEnabled: false,
+    fundCharge: 0.006, nicRate: 0.15, nicThreshold: 5000,
+  });
+  console.assert(result.staticData.length > 0, 'Should have static data points');
+  console.assert(result.salaryData.length > 0, 'Should have salary data points');
+  console.assert(result.nominalPot > 31614.51, 'Nominal pot should grow');
+  console.assert(result.realPot < result.nominalPot, 'Real pot should be less than nominal');
+  console.assert(result.withdrawalIncome > 0, 'Withdrawal income should be positive');
+  console.assert(result.annuityIncome > 0, 'Annuity income should be positive');
+
+  console.log('✓ All self-tests passed');
+})();
+```
+
+- [ ] **Step 4: Open in browser and check console**
+
+Open `index.html`, open browser developer console (Cmd+Option+J / F12). Verify:
+- "✓ All self-tests passed" appears
+- No assertion errors
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add embedded data and calculation engine with self-tests"
+```
+
+---
+
+### Task 3: Sidebar Controls
+
+**Files:**
+- Modify: `index.html` (sidebar HTML + JS event handlers)
+
+- [ ] **Step 1: Add sidebar HTML**
+
+Replace the `<!-- Controls will be added in Task 3 -->` comment inside `<div class="sidebar" id="sidebar">` with:
+
+```html
+<!-- Your Details -->
+<div class="sidebar-section">
+  <div class="sidebar-section-title">Your Details</div>
+  <div class="control-group">
+    <div class="control-label"><span>Current Balance</span></div>
+    <input type="text" class="text-input" id="input-balance" value="31,614.51">
+  </div>
+  <div class="control-group">
+    <div class="control-label"><span>Base Salary</span></div>
+    <input type="text" class="text-input" id="input-salary" value="85,000">
+  </div>
+  <div class="control-group">
+    <div class="control-label"><span>Monthly Contribution</span></div>
+    <input type="text" class="text-input" id="input-contribution" value="3,183.96" readonly
+      style="opacity: 0.7; cursor: not-allowed;">
+    <div class="control-hint">Auto-calculated from salary + contribution %</div>
+  </div>
+</div>
+
+<!-- Contribution Settings -->
+<div class="sidebar-section">
+  <div class="sidebar-section-title">Contribution Settings</div>
+  <div class="control-group">
+    <div class="control-label"><span>Employee Contribution</span><span class="control-value" id="val-employee-pct">33%</span></div>
+    <input type="range" id="slider-employee-pct" min="0" max="50" step="1" value="33">
+  </div>
+  <div class="control-group">
+    <div class="control-label"><span>Employer Contribution</span><span class="control-value" id="val-employer-pct">7%</span></div>
+    <input type="range" id="slider-employer-pct" min="0" max="20" step="1" value="7">
+  </div>
+  <label class="checkbox-group">
+    <input type="checkbox" id="checkbox-cola">
+    I receive a cost of living adjustment (CoLA)
+  </label>
+  <div class="control-group" id="group-salary-growth">
+    <div class="control-label"><span id="label-salary-growth">Salary Growth</span><span class="control-value" id="val-salary-growth">3.5%</span></div>
+    <input type="range" id="slider-salary-growth" min="0" max="10" step="0.1" value="3.5">
+    <div class="control-hint" id="hint-salary-growth"></div>
+  </div>
+</div>
+
+<!-- Assumptions -->
+<div class="sidebar-section">
+  <div class="sidebar-section-title">Assumptions</div>
+  <div class="control-group">
+    <div class="control-label"><span>Expected Return</span><span class="control-value" id="val-return">10.3%</span></div>
+    <input type="range" id="slider-return" min="0" max="15" step="0.1" value="10.3">
+    <div class="control-hint">Fund 5yr avg: 10.3% · 10yr: 12.2%</div>
+  </div>
+  <div class="control-group">
+    <div class="control-label"><span>Inflation (CPIH)</span><span class="control-value" id="val-inflation">2.5%</span></div>
+    <input type="range" id="slider-inflation" min="0" max="10" step="0.1" value="2.5">
+    <div class="control-hint">CPIH 35yr avg: <span id="cpih-avg"></span></div>
+  </div>
+  <div class="control-group">
+    <div class="control-label"><span>Retirement Age</span><span class="control-value" id="val-retirement">68</span></div>
+    <input type="range" id="slider-retirement" min="55" max="75" step="1" value="68">
+  </div>
+</div>
+
+<!-- Retirement Income -->
+<div class="sidebar-section">
+  <div class="sidebar-section-title">Retirement Income</div>
+  <div class="control-group">
+    <div class="control-label"><span>Withdrawal Rate</span><span class="control-value" id="val-withdrawal">4.0%</span></div>
+    <input type="range" id="slider-withdrawal" min="1" max="10" step="0.1" value="4">
+  </div>
+</div>
+
+<!-- Static Info -->
+<div class="static-info">
+  <div class="info-label">Fund Details</div>
+  <div class="info-line">
+    Fund: Aviva Pensions International Index Tracking S2<br>
+    Benchmark: FTSE World ex UK<br>
+    Fund Charge (OCF): 0.60%
+  </div>
+</div>
+```
+
+- [ ] **Step 2: Add control wiring JavaScript**
+
+Add after the self-test block but before the tab switching code:
+
+```javascript
+// === UI STATE ===
+
+const state = {
+  currentBalance: DEFAULTS.currentBalance,
+  baseSalary: DEFAULTS.baseSalary,
+  employeePct: DEFAULTS.employeeContribPct,
+  employerPct: DEFAULTS.employerContribPct,
+  colaEnabled: DEFAULTS.colaEnabled,
+  salaryGrowth: DEFAULTS.salaryGrowth,
+  realRaise: DEFAULTS.realRaise,
+  expectedReturn: DEFAULTS.expectedReturn,
+  inflationRate: DEFAULTS.inflationRate,
+  retirementAge: DEFAULTS.retirementAge,
+  withdrawalRate: DEFAULTS.withdrawalRate,
+};
+
+function getMonthlyContribution() {
+  return calculateMonthlyContribution(
+    state.baseSalary, state.employeePct, state.employerPct,
+    DEFAULTS.employerNicRate, DEFAULTS.nicSecondaryThreshold
+  );
+}
+
+function formatCurrency(value) {
+  if (Math.abs(value) >= 1000000) {
+    return '£' + (value / 1000000).toFixed(2) + 'M';
+  }
+  if (Math.abs(value) >= 100000) {
+    return '£' + (value / 1000).toFixed(0) + 'k';
+  }
+  return '£' + value.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function formatCurrencyFull(value) {
+  return '£' + value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseInputNumber(str) {
+  return parseFloat(str.replace(/[^0-9.\-]/g, '')) || 0;
+}
+
+function updateContributionDisplay() {
+  const mc = getMonthlyContribution();
+  document.getElementById('input-contribution').value = mc.toLocaleString('en-GB', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2,
+  });
+}
+
+function updateColaUI() {
+  const cola = state.colaEnabled;
+  const label = document.getElementById('label-salary-growth');
+  const hint = document.getElementById('hint-salary-growth');
+  const slider = document.getElementById('slider-salary-growth');
+  const valDisplay = document.getElementById('val-salary-growth');
+
+  if (cola) {
+    label.textContent = 'Real Raise (above inflation)';
+    slider.value = (state.realRaise * 100).toFixed(1);
+    valDisplay.textContent = (state.realRaise * 100).toFixed(1) + '%';
+    const effective = ((state.inflationRate + state.realRaise) * 100).toFixed(1);
+    hint.textContent = `Effective salary growth: ${effective}% (CoLA + raise)`;
+  } else {
+    label.textContent = 'Salary Growth';
+    slider.value = (state.salaryGrowth * 100).toFixed(1);
+    valDisplay.textContent = (state.salaryGrowth * 100).toFixed(1) + '%';
+    hint.textContent = '';
+  }
+}
+
+// Set CPIH average display
+document.getElementById('cpih-avg').textContent = (deriveInflationDefault() * 100).toFixed(1) + '%';
+
+// Set initial inflation slider to derived default
+document.getElementById('slider-inflation').value = (DEFAULTS.inflationRate * 100).toFixed(1);
+document.getElementById('val-inflation').textContent = (DEFAULTS.inflationRate * 100).toFixed(1) + '%';
+
+// === EVENT HANDLERS ===
+
+function recalculate() {
+  const mc = getMonthlyContribution();
+  const result = projectPension({
+    currentBalance: state.currentBalance,
+    monthlyContribution: mc,
+    baseSalary: state.baseSalary,
+    employeePct: state.employeePct,
+    employerPct: state.employerPct,
+    retirementAge: state.retirementAge,
+    currentAge: DEFAULTS.currentAge,
+    expectedReturn: state.expectedReturn,
+    inflationRate: state.inflationRate,
+    salaryGrowth: state.salaryGrowth,
+    realRaise: state.realRaise,
+    withdrawalRate: state.withdrawalRate,
+    colaEnabled: state.colaEnabled,
+    fundCharge: FUND.charge,
+    nicRate: DEFAULTS.employerNicRate,
+    nicThreshold: DEFAULTS.nicSecondaryThreshold,
+  });
+
+  updateSummaryCards(result);
+  updateCharts(result);
+}
+
+function updateSummaryCards(result) {
+  document.getElementById('card-pot').textContent = formatCurrency(result.nominalPot);
+  document.getElementById('card-pot-sub').textContent = `Age ${state.retirementAge} · Year ${result.retirementYear}`;
+  document.getElementById('card-income').textContent = formatCurrency(result.withdrawalIncome);
+  document.getElementById('card-income-rate').textContent = (state.withdrawalRate * 100).toFixed(0) + '%';
+  document.getElementById('card-income-sub').textContent = formatCurrency(result.withdrawalIncome / 12) + '/month';
+  document.getElementById('card-real').textContent = formatCurrency(result.realPot);
+  document.getElementById('card-annuity').textContent = formatCurrency(result.annuityIncome) + '/yr';
+}
+
+function updateCharts(result) {
+  // Placeholder — charts wired in Tasks 5 and 6
+}
+
+// Slider handlers
+function bindSlider(id, stateKey, displayId, suffix, divisor) {
+  const slider = document.getElementById(id);
+  const display = document.getElementById(displayId);
+  slider.addEventListener('input', () => {
+    const raw = parseFloat(slider.value);
+    state[stateKey] = raw / divisor;
+    display.textContent = raw.toFixed(divisor === 100 ? 1 : 0) + suffix;
+    if (stateKey === 'inflationRate' && state.colaEnabled) updateColaUI();
+    updateContributionDisplay();
+    recalculate();
+  });
+}
+
+bindSlider('slider-employee-pct', 'employeePct', 'val-employee-pct', '%', 100);
+bindSlider('slider-employer-pct', 'employerPct', 'val-employer-pct', '%', 100);
+bindSlider('slider-return', 'expectedReturn', 'val-return', '%', 100);
+bindSlider('slider-inflation', 'inflationRate', 'val-inflation', '%', 100);
+bindSlider('slider-retirement', 'retirementAge', 'val-retirement', '', 1);
+bindSlider('slider-withdrawal', 'withdrawalRate', 'val-withdrawal', '%', 100);
+
+// Salary growth slider — special handling for CoLA toggle
+document.getElementById('slider-salary-growth').addEventListener('input', (e) => {
+  const raw = parseFloat(e.target.value);
+  if (state.colaEnabled) {
+    state.realRaise = raw / 100;
+  } else {
+    state.salaryGrowth = raw / 100;
+  }
+  updateColaUI();
+  recalculate();
+});
+
+// CoLA checkbox
+document.getElementById('checkbox-cola').addEventListener('change', (e) => {
+  state.colaEnabled = e.target.checked;
+  updateColaUI();
+  recalculate();
+});
+
+// Text inputs
+document.getElementById('input-balance').addEventListener('change', (e) => {
+  state.currentBalance = parseInputNumber(e.target.value);
+  e.target.value = state.currentBalance.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  recalculate();
+});
+
+document.getElementById('input-salary').addEventListener('change', (e) => {
+  state.baseSalary = parseInputNumber(e.target.value);
+  e.target.value = state.baseSalary.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  updateContributionDisplay();
+  recalculate();
+});
+
+// Initial calculation
+updateContributionDisplay();
+recalculate();
+```
+
+- [ ] **Step 3: Open in browser and test controls**
+
+Verify:
+- All sliders show their values and update the display label when dragged
+- Summary cards update with calculated values when any slider moves
+- Changing salary or contribution % recalculates the monthly contribution display
+- CoLA checkbox toggles the salary growth label and hint text
+- Text inputs accept new values on blur/enter
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add sidebar controls with live state updates"
+```
+
+---
+
+### Task 4: Growth Tab Chart
+
+**Files:**
+- Modify: `index.html` (replace `updateCharts` placeholder)
+
+- [ ] **Step 1: Implement the Growth chart**
+
+Replace the `updateCharts` function (which currently just has a placeholder comment) with:
+
+```javascript
+let growthChart = null;
+let realValueChart = null;
+
+function updateCharts(result) {
+  updateGrowthChart(result);
+  updateRealValueChart(result);
+  updateIncomeTab(result);
+}
+
+function updateGrowthChart(result) {
+  const ctx = document.getElementById('chart-growth').getContext('2d');
+  const labels = result.salaryData.map(d => d.age);
+
+  const datasets = [
+    {
+      label: 'With salary growth',
+      data: result.salaryData.map(d => d.value),
+      borderColor: '#3b82f6',
+      backgroundColor: 'rgba(59, 130, 246, 0.12)',
+      fill: true,
+      tension: 0.3,
+      borderWidth: 2.5,
+      pointRadius: 0,
+      pointHoverRadius: 5,
+      pointHoverBackgroundColor: '#3b82f6',
+    },
+    {
+      label: 'Static contributions',
+      data: result.staticData.map(d => d.value),
+      borderColor: '#10b981',
+      backgroundColor: 'rgba(16, 185, 129, 0.08)',
+      fill: true,
+      tension: 0.3,
+      borderWidth: 2.5,
+      borderDash: [6, 4],
+      pointRadius: 0,
+      pointHoverRadius: 5,
+      pointHoverBackgroundColor: '#10b981',
+    },
+  ];
+
+  const config = {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: '#94a3b8', usePointStyle: true, padding: 20 },
+        },
+        tooltip: {
+          backgroundColor: '#1e293b',
+          titleColor: '#e2e8f0',
+          bodyColor: '#94a3b8',
+          borderColor: '#334155',
+          borderWidth: 1,
+          padding: 12,
+          callbacks: {
+            title: (items) => {
+              const idx = items[0].dataIndex;
+              const d = result.salaryData[idx];
+              return `Age ${d.age} (${d.year})`;
+            },
+            label: (item) => ` ${item.dataset.label}: ${formatCurrencyFull(item.raw)}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: '#1e293b' },
+          ticks: { color: '#64748b', maxTicksLimit: 10 },
+          title: { display: true, text: 'Age', color: '#64748b' },
+        },
+        y: {
+          grid: { color: '#334155', drawBorder: false },
+          ticks: {
+            color: '#64748b',
+            callback: (val) => formatCurrency(val),
+          },
+          title: { display: true, text: 'Pot Value', color: '#64748b' },
+        },
+      },
+    },
+  };
+
+  if (growthChart) {
+    growthChart.data = config.data;
+    growthChart.update('none');
+  } else {
+    growthChart = new Chart(ctx, config);
+  }
+}
+
+function updateRealValueChart(result) {
+  // Placeholder — implemented in Task 5
+}
+
+function updateIncomeTab(result) {
+  // Placeholder — implemented in Task 7
+}
+```
+
+- [ ] **Step 2: Set chart container height**
+
+The chart canvas needs a fixed height container to render properly. In the CSS, update `.chart-container`:
+
+The existing CSS has `max-height: 500px`. Add `height: 450px` to give it an explicit height:
+
+Find this CSS rule:
+```css
+.chart-container {
+  position: relative;
+  width: 100%;
+  max-height: 500px;
+}
+```
+
+Replace with:
+```css
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 450px;
+}
+```
+
+- [ ] **Step 3: Open in browser and test the Growth chart**
+
+Verify:
+- Growth tab shows a line chart with two lines (blue solid, green dashed)
+- Blue line (salary-linked) should be higher than green line (static) over time
+- Hover shows tooltips with age, year, and formatted values
+- Moving sliders (e.g. retirement age, expected return) causes chart to update live
+- Legend at bottom shows both labels
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add Growth tab line chart with dual scenarios"
+```
+
+---
+
+### Task 5: Real Value Tab Chart
+
+**Files:**
+- Modify: `index.html` (implement `updateRealValueChart`)
+
+- [ ] **Step 1: Implement the Real Value chart**
+
+Replace the `updateRealValueChart` function with:
+
+```javascript
+function updateRealValueChart(result) {
+  const ctx = document.getElementById('chart-real-value').getContext('2d');
+  const labels = result.salaryRealData.map(d => d.age);
+
+  const datasets = [
+    {
+      label: 'Nominal (salary-linked)',
+      data: result.salaryData.map(d => d.value),
+      borderColor: 'rgba(59, 130, 246, 0.3)',
+      backgroundColor: 'transparent',
+      fill: false,
+      tension: 0.3,
+      borderWidth: 1.5,
+      borderDash: [4, 4],
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      pointHoverBackgroundColor: 'rgba(59, 130, 246, 0.5)',
+    },
+    {
+      label: 'Real value (salary-linked)',
+      data: result.salaryRealData.map(d => d.value),
+      borderColor: '#f59e0b',
+      backgroundColor: 'rgba(245, 158, 11, 0.12)',
+      fill: true,
+      tension: 0.3,
+      borderWidth: 2.5,
+      pointRadius: 0,
+      pointHoverRadius: 5,
+      pointHoverBackgroundColor: '#f59e0b',
+    },
+    {
+      label: 'Real value (static)',
+      data: result.staticRealData.map(d => d.value),
+      borderColor: '#10b981',
+      backgroundColor: 'rgba(16, 185, 129, 0.08)',
+      fill: true,
+      tension: 0.3,
+      borderWidth: 2.5,
+      borderDash: [6, 4],
+      pointRadius: 0,
+      pointHoverRadius: 5,
+      pointHoverBackgroundColor: '#10b981',
+    },
+    {
+      label: 'Inflation erosion',
+      data: result.salaryData.map((d, i) => d.value - result.salaryRealData[i].value),
+      borderColor: 'transparent',
+      backgroundColor: 'rgba(239, 68, 68, 0.10)',
+      fill: true,
+      tension: 0.3,
+      borderWidth: 0,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+    },
+  ];
+
+  const config = {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: '#94a3b8',
+            usePointStyle: true,
+            padding: 20,
+            filter: (item) => item.text !== 'Inflation erosion',
+          },
+        },
+        tooltip: {
+          backgroundColor: '#1e293b',
+          titleColor: '#e2e8f0',
+          bodyColor: '#94a3b8',
+          borderColor: '#334155',
+          borderWidth: 1,
+          padding: 12,
+          callbacks: {
+            title: (items) => {
+              const idx = items[0].dataIndex;
+              const d = result.salaryData[idx];
+              return `Age ${d.age} (${d.year})`;
+            },
+            label: (item) => {
+              if (item.dataset.label === 'Inflation erosion') {
+                return ` Purchasing power lost: ${formatCurrencyFull(item.raw)}`;
+              }
+              return ` ${item.dataset.label}: ${formatCurrencyFull(item.raw)}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: '#1e293b' },
+          ticks: { color: '#64748b', maxTicksLimit: 10 },
+          title: { display: true, text: 'Age', color: '#64748b' },
+        },
+        y: {
+          grid: { color: '#334155', drawBorder: false },
+          ticks: {
+            color: '#64748b',
+            callback: (val) => formatCurrency(val),
+          },
+          title: { display: true, text: "Value (Today's £)", color: '#64748b' },
+        },
+      },
+    },
+  };
+
+  if (realValueChart) {
+    realValueChart.data = config.data;
+    realValueChart.update('none');
+  } else {
+    realValueChart = new Chart(ctx, config);
+  }
+}
+```
+
+- [ ] **Step 2: Open in browser and test the Real Value chart**
+
+Click the "Real Value" tab. Verify:
+- Faded dashed blue line shows nominal value
+- Solid amber line shows real (inflation-adjusted) value — always below nominal
+- Green dashed line shows real value for static scenario
+- Red-tinted shaded area between nominal and real shows inflation erosion
+- Gap between nominal and real grows over time (compounding inflation effect)
+- Hover tooltip shows values and "Purchasing power lost" for the erosion dataset
+- Inflation erosion legend entry is hidden
+- Changing inflation slider dramatically affects the gap
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add Real Value tab with inflation erosion visualisation"
+```
+
+---
+
+### Task 6: Income Tab
+
+**Files:**
+- Modify: `index.html` (income tab HTML + `updateIncomeTab` function)
+
+- [ ] **Step 1: Add income tab HTML**
+
+Replace `<!-- Income content added in Task 7 -->` inside `<div class="tab-content" id="tab-income">` with:
+
+```html
+<div class="income-comparison">
+  <div class="income-block">
+    <div class="amount blue" id="income-withdrawal-amount">—</div>
+    <div class="income-label" id="income-withdrawal-label">4% Withdrawal Rule</div>
+    <div class="income-sub" id="income-withdrawal-monthly">—/month</div>
+  </div>
+  <div class="income-vs">vs</div>
+  <div class="income-block">
+    <div class="amount purple" id="income-annuity-amount">—</div>
+    <div class="income-label">Annuity Estimate</div>
+    <div class="income-sub" id="income-annuity-monthly">—/month</div>
+  </div>
+</div>
+
+<div class="income-details">
+  <div class="income-detail-card">
+    <h4>Withdrawal Rule</h4>
+    <div class="detail-row">
+      <span class="detail-label">Annual (nominal)</span>
+      <span class="detail-value" id="detail-wr-nominal">—</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Monthly (nominal)</span>
+      <span class="detail-value" id="detail-wr-nominal-monthly">—</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Annual (today's £)</span>
+      <span class="detail-value" id="detail-wr-real">—</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Monthly (today's £)</span>
+      <span class="detail-value" id="detail-wr-real-monthly">—</span>
+    </div>
+  </div>
+  <div class="income-detail-card">
+    <h4>Annuity Purchase</h4>
+    <div class="detail-row">
+      <span class="detail-label">Annual (nominal)</span>
+      <span class="detail-value" id="detail-an-nominal">—</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Monthly (nominal)</span>
+      <span class="detail-value" id="detail-an-nominal-monthly">—</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Annual (today's £)</span>
+      <span class="detail-value" id="detail-an-real">—</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Monthly (today's £)</span>
+      <span class="detail-value" id="detail-an-real-monthly">—</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Annuity rate at age <span id="detail-an-age">68</span></span>
+      <span class="detail-value" id="detail-an-rate">—</span>
+    </div>
+  </div>
+</div>
+```
+
+- [ ] **Step 2: Implement updateIncomeTab**
+
+Replace the `updateIncomeTab` placeholder function with:
+
+```javascript
+function updateIncomeTab(result) {
+  // Headline figures
+  document.getElementById('income-withdrawal-amount').textContent = formatCurrency(result.withdrawalIncome) + '/yr';
+  document.getElementById('income-withdrawal-label').textContent =
+    (state.withdrawalRate * 100).toFixed(1) + '% Withdrawal Rule';
+  document.getElementById('income-withdrawal-monthly').textContent =
+    formatCurrency(result.withdrawalIncome / 12) + '/month';
+
+  document.getElementById('income-annuity-amount').textContent = formatCurrency(result.annuityIncome) + '/yr';
+  document.getElementById('income-annuity-monthly').textContent =
+    formatCurrency(result.annuityIncome / 12) + '/month';
+
+  // Detail cards
+  document.getElementById('detail-wr-nominal').textContent = formatCurrencyFull(result.withdrawalIncome);
+  document.getElementById('detail-wr-nominal-monthly').textContent = formatCurrencyFull(result.withdrawalIncome / 12);
+  document.getElementById('detail-wr-real').textContent = formatCurrencyFull(result.realWithdrawalIncome);
+  document.getElementById('detail-wr-real-monthly').textContent = formatCurrencyFull(result.realWithdrawalIncome / 12);
+
+  document.getElementById('detail-an-nominal').textContent = formatCurrencyFull(result.annuityIncome);
+  document.getElementById('detail-an-nominal-monthly').textContent = formatCurrencyFull(result.annuityIncome / 12);
+  document.getElementById('detail-an-real').textContent = formatCurrencyFull(result.realAnnuityIncome);
+  document.getElementById('detail-an-real-monthly').textContent = formatCurrencyFull(result.realAnnuityIncome / 12);
+  document.getElementById('detail-an-age').textContent = state.retirementAge;
+  document.getElementById('detail-an-rate').textContent = (result.annuityRate * 100).toFixed(1) + '%';
+}
+```
+
+- [ ] **Step 3: Open in browser and test the Income tab**
+
+Click the "Income" tab. Verify:
+- Two large headline figures (blue for withdrawal, purple for annuity) with monthly sub-text
+- "vs" separator between them
+- Two detail cards below showing nominal and real (today's £) for both annual and monthly
+- Annuity card shows the interpolated rate for the selected retirement age
+- Changing withdrawal rate slider updates the left column
+- Changing retirement age updates the annuity rate and all figures
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add Income tab with withdrawal and annuity comparison"
+```
+
+---
+
+### Task 7: Footer — Data Sources Panel + CSV Download
+
+**Files:**
+- Modify: `index.html` (modal content + download function)
+
+- [ ] **Step 1: Add data sources modal content**
+
+Replace `<!-- Sources added in Task 8 -->` inside the modal with:
+
+```html
+<div class="source-item">
+  <h4>Inflation Data (CPIH)</h4>
+  <p>
+    Consumer Prices Index including owner occupiers' housing costs (CPIH) annual rate.<br>
+    <strong>Source:</strong> ONS series L55O, 1990–2025.<br>
+    <strong>Why CPIH:</strong> ONS lead measure since 2017. Includes owner-occupier housing costs (unlike CPI).
+    No methodological upward bias (unlike RPI, which lost National Statistic status in 2013). RPI will be aligned to CPIH from 2030.
+  </p>
+  <a href="https://www.ons.gov.uk/economy/inflationandpriceindices/timeseries/l55o/mm23" target="_blank" rel="noopener">ONS CPIH Series L55O →</a>
+</div>
+<div class="source-item">
+  <h4>Annuity Rates</h4>
+  <p>
+    Approximate current UK market rates for single life, level (non-escalating) annuity.
+    Rates vary by retirement age from 4.0% at age 55 to 7.0% at age 75.
+    Linear interpolation for intermediate ages.<br>
+    <strong>Note:</strong> These are indicative estimates. Actual annuity quotes depend on health, provider, annuity type, and market conditions at purchase.
+  </p>
+</div>
+<div class="source-item">
+  <h4>Fund Performance</h4>
+  <p>
+    Aviva Pensions International Index Tracking S2.<br>
+    <strong>Source:</strong> Aviva Fund Factsheet TM10024, April 2026.<br>
+    Benchmark: FTSE World ex UK. Total fund charge (OCF): 0.60%.<br>
+    5-year cumulative return: 63.13% (~10.3% annualised).<br>
+    10-year cumulative return: 215.51% (~12.2% annualised).
+  </p>
+</div>
+<div class="source-item">
+  <h4>NIC Rates</h4>
+  <p>
+    Employer NIC rate: 15% (from April 2025).<br>
+    Secondary Threshold: £5,000/yr (from April 2025).<br>
+    <strong>Source:</strong> HMRC Employer NIC rates 2025/26.
+  </p>
+</div>
+```
+
+- [ ] **Step 2: Add modal open/close + CSV download JavaScript**
+
+Add after the event handlers (before the closing `</script>` tag):
+
+```javascript
+// === FOOTER: DATA SOURCES MODAL ===
+
+document.getElementById('btn-sources').addEventListener('click', () => {
+  document.getElementById('modal-sources').classList.add('active');
+});
+
+document.getElementById('btn-close-modal').addEventListener('click', () => {
+  document.getElementById('modal-sources').classList.remove('active');
+});
+
+document.getElementById('modal-sources').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) {
+    e.currentTarget.classList.remove('active');
+  }
+});
+
+// === FOOTER: CSV DOWNLOAD ===
+
+document.getElementById('btn-download').addEventListener('click', () => {
+  let csv = 'Dataset,Field,Value\n';
+
+  // CPIH data
+  csv += '\n';
+  CPIH_DATA.forEach(d => {
+    csv += `CPIH,${d.year},${d.rate}%\n`;
+  });
+
+  // Annuity rates
+  csv += '\n';
+  ANNUITY_RATES.forEach(d => {
+    csv += `Annuity Rate,Age ${d.age},${(d.rate * 100).toFixed(1)}%\n`;
+  });
+
+  // Fund data
+  csv += '\n';
+  csv += `Fund,Name,${FUND.name}\n`;
+  csv += `Fund,Charge (OCF),${(FUND.charge * 100).toFixed(2)}%\n`;
+  csv += `Fund,5yr Annualised Return,${(FUND.return5yr * 100).toFixed(1)}%\n`;
+  csv += `Fund,10yr Annualised Return,${(FUND.return10yr * 100).toFixed(1)}%\n`;
+  csv += `Fund,Benchmark,${FUND.benchmark}\n`;
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'pension-calculator-data.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+```
+
+- [ ] **Step 3: Open in browser and test footer features**
+
+Verify:
+- Clicking "Data Sources" opens a modal overlay with 4 source items
+- Modal has a close button (×) and clicking outside closes it
+- Each source item has a title, description, and link where applicable
+- ONS link opens in a new tab
+- Clicking "Download Data (CSV)" downloads a `pension-calculator-data.csv` file
+- Open the CSV — it should contain CPIH data (year + rate), annuity rates (age + rate), and fund data
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add index.html
+git commit -m "feat: add data sources modal and CSV download"
+```
+
+---
+
+### Task 8: Final Polish + Verification
+
+**Files:**
+- Modify: `index.html`
+
+- [ ] **Step 1: Add .gitignore**
+
+Create a `.gitignore` file:
+
+```
+.superpowers/
+.DS_Store
+```
+
+- [ ] **Step 2: End-to-end verification**
+
+Open `index.html` in a browser. Run through this checklist:
+
+1. **Page loads** — no console errors, self-tests pass ("✓ All self-tests passed" in console)
+2. **Summary cards** — all 4 show calculated values, not "—"
+3. **Sliders** — drag each slider, verify:
+   - Value label updates
+   - Summary cards update
+   - Charts update (switch to each tab to confirm)
+4. **CoLA toggle** — tick checkbox:
+   - Label changes to "Real Raise (above inflation)"
+   - Hint shows effective salary growth
+   - Untick — reverts to "Salary Growth"
+5. **Text inputs** — change balance and salary, verify values recalculate
+6. **Growth tab** — two lines, blue above green, tooltips work
+7. **Real Value tab** — nominal faded, real solid, red erosion shading grows over time
+8. **Income tab** — two headline figures, detail cards with nominal + real values
+9. **Footer** — data sources modal opens/closes, CSV downloads correctly
+10. **Responsive** — narrow window to <768px, sidebar stacks above main, cards go 2×2
+
+- [ ] **Step 3: Commit and tag**
+
+```bash
+git add .gitignore index.html
+git commit -m "feat: final polish and add .gitignore"
+```
+
+---
+
+## Summary
+
+| Task | Description | Key Output |
+|---|---|---|
+| 1 | HTML skeleton + dark theme CSS | Viewable layout with tab switching |
+| 2 | Embedded data + calculation engine | Self-tested pure functions |
+| 3 | Sidebar controls | Live slider/input interaction |
+| 4 | Growth tab chart | Chart.js line chart with dual scenarios |
+| 5 | Real Value tab chart | Inflation erosion visualisation |
+| 6 | Income tab | Withdrawal vs annuity comparison |
+| 7 | Footer data sources + CSV download | Transparency and data export |
+| 8 | Final polish + verification | End-to-end working calculator |
