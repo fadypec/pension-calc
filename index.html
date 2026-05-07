@@ -588,7 +588,43 @@
     <div class="modal">
       <button class="modal-close" id="btn-close-modal">×</button>
       <h3>Data Sources</h3>
-      <!-- Sources added in Task 8 -->
+      <div class="source-item">
+        <h4>Inflation Data (CPIH)</h4>
+        <p>
+          Consumer Prices Index including owner occupiers' housing costs (CPIH) annual rate.<br>
+          <strong>Source:</strong> ONS series L55O, 1990–2025.<br>
+          <strong>Why CPIH:</strong> ONS lead measure since 2017. Includes owner-occupier housing costs (unlike CPI).
+          No methodological upward bias (unlike RPI, which lost National Statistic status in 2013). RPI will be aligned to CPIH from 2030.
+        </p>
+        <a href="https://www.ons.gov.uk/economy/inflationandpriceindices/timeseries/l55o/mm23" target="_blank" rel="noopener">ONS CPIH Series L55O →</a>
+      </div>
+      <div class="source-item">
+        <h4>Annuity Rates</h4>
+        <p>
+          Approximate current UK market rates for single life, level (non-escalating) annuity.
+          Rates vary by retirement age from 4.0% at age 55 to 7.0% at age 75.
+          Linear interpolation for intermediate ages.<br>
+          <strong>Note:</strong> These are indicative estimates. Actual annuity quotes depend on health, provider, annuity type, and market conditions at purchase.
+        </p>
+      </div>
+      <div class="source-item">
+        <h4>Fund Performance</h4>
+        <p>
+          Aviva Pensions International Index Tracking S2.<br>
+          <strong>Source:</strong> Aviva Fund Factsheet TM10024, April 2026.<br>
+          Benchmark: FTSE World ex UK. Total fund charge (OCF): 0.60%.<br>
+          5-year cumulative return: 63.13% (~10.3% annualised).<br>
+          10-year cumulative return: 215.51% (~12.2% annualised).
+        </p>
+      </div>
+      <div class="source-item">
+        <h4>NIC Rates</h4>
+        <p>
+          Employer NIC rate: 15% (from April 2025).<br>
+          Secondary Threshold: £5,000/yr (from April 2025).<br>
+          <strong>Source:</strong> HMRC Employer NIC rates 2025/26.
+        </p>
+      </div>
     </div>
   </div>
 
@@ -1216,6 +1252,56 @@
     // Initial calculation
     updateContributionDisplay();
     recalculate();
+
+    // === FOOTER: DATA SOURCES MODAL ===
+
+    document.getElementById('btn-sources').addEventListener('click', () => {
+      document.getElementById('modal-sources').classList.add('active');
+    });
+
+    document.getElementById('btn-close-modal').addEventListener('click', () => {
+      document.getElementById('modal-sources').classList.remove('active');
+    });
+
+    document.getElementById('modal-sources').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) {
+        e.currentTarget.classList.remove('active');
+      }
+    });
+
+    // === FOOTER: CSV DOWNLOAD ===
+
+    document.getElementById('btn-download').addEventListener('click', () => {
+      let csv = 'Dataset,Field,Value\n';
+
+      // CPIH data
+      csv += '\n';
+      CPIH_DATA.forEach(d => {
+        csv += `CPIH,${d.year},${d.rate}%\n`;
+      });
+
+      // Annuity rates
+      csv += '\n';
+      ANNUITY_RATES.forEach(d => {
+        csv += `Annuity Rate,Age ${d.age},${(d.rate * 100).toFixed(1)}%\n`;
+      });
+
+      // Fund data
+      csv += '\n';
+      csv += `Fund,Name,${FUND.name}\n`;
+      csv += `Fund,Charge (OCF),${(FUND.charge * 100).toFixed(2)}%\n`;
+      csv += `Fund,5yr Annualised Return,${(FUND.return5yr * 100).toFixed(1)}%\n`;
+      csv += `Fund,10yr Annualised Return,${(FUND.return10yr * 100).toFixed(1)}%\n`;
+      csv += `Fund,Benchmark,${FUND.benchmark}\n`;
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'pension-calculator-data.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
 
     // Tab switching
     document.querySelectorAll('.tab-bar button').forEach(btn => {
