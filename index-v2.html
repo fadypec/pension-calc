@@ -1185,19 +1185,21 @@
       const ctx = document.getElementById('chart-real-value').getContext('2d');
       const labels = result.salaryRealData.map(d => d.age);
 
+      // Pre-compute erosion values for tooltips
+      const salaryErosion = result.salaryData.map((d, i) => d.value - result.salaryRealData[i].value);
+      const staticErosion = result.staticData.map((d, i) => d.value - result.staticRealData[i].value);
+
       // Dataset order matters for fill targeting:
-      // 0: Nominal (salary-linked)  — dashed blue, filled down to dataset 2 (real salary-linked)
-      // 1: Nominal (static)         — dashed green, filled down to dataset 3 (real static)
+      // 0: Nominal (salary-linked) — dashed blue, fill down to index 2 (real salary-linked) in blue
+      // 1: Nominal (static)        — dashed green, fill down to index 3 (real static) in green
       // 2: Real value (salary-linked) — solid blue
       // 3: Real value (static)        — solid green
-      // Colour scheme: blue pair for salary-linked, green pair for static
-      // Dashed = nominal (future £), solid = real (today's £)
       const datasets = [
         {
           label: 'Nominal (salary-linked)',
           data: result.salaryData.map(d => d.value),
           borderColor: 'rgba(59, 130, 246, 0.4)',
-          backgroundColor: 'rgba(59, 130, 246, 0.06)',
+          backgroundColor: 'rgba(59, 130, 246, 0.10)',
           fill: '+2',
           tension: 0.3,
           borderWidth: 1.5,
@@ -1210,7 +1212,7 @@
           label: 'Nominal (static)',
           data: result.staticData.map(d => d.value),
           borderColor: 'rgba(16, 185, 129, 0.4)',
-          backgroundColor: 'rgba(16, 185, 129, 0.06)',
+          backgroundColor: 'rgba(16, 185, 129, 0.10)',
           fill: '+2',
           tension: 0.3,
           borderWidth: 1.5,
@@ -1258,7 +1260,37 @@
               labels: {
                 color: '#94a3b8',
                 usePointStyle: true,
-                padding: 20,
+                padding: 16,
+                generateLabels: (chart) => {
+                  // Standard labels for the 4 line datasets
+                  const lineLabels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                  // Add custom legend entries for shaded erosion areas
+                  lineLabels.push({
+                    text: 'Inflation erosion (salary-linked)',
+                    fillStyle: 'rgba(59, 130, 246, 0.10)',
+                    strokeStyle: 'rgba(59, 130, 246, 0.3)',
+                    lineWidth: 1,
+                    pointStyle: 'rect',
+                    hidden: false,
+                    datasetIndex: null,
+                  });
+                  lineLabels.push({
+                    text: 'Inflation erosion (static)',
+                    fillStyle: 'rgba(16, 185, 129, 0.10)',
+                    strokeStyle: 'rgba(16, 185, 129, 0.3)',
+                    lineWidth: 1,
+                    pointStyle: 'rect',
+                    hidden: false,
+                    datasetIndex: null,
+                  });
+                  return lineLabels;
+                },
+              },
+              onClick: (e, legendItem, legend) => {
+                // Only handle clicks on real dataset legends
+                if (legendItem.datasetIndex != null) {
+                  Chart.defaults.plugins.legend.onClick(e, legendItem, legend);
+                }
               },
             },
             tooltip: {
@@ -1273,6 +1305,17 @@
                   const idx = items[0].dataIndex;
                   const d = result.salaryData[idx];
                   return `Age ${d.age} (${d.year})`;
+                },
+                afterBody: (items) => {
+                  const idx = items[0].dataIndex;
+                  const lines = [];
+                  if (salaryErosion[idx] > 0) {
+                    lines.push(`  Erosion (salary-linked): ${formatCurrencyFull(salaryErosion[idx])}`);
+                  }
+                  if (staticErosion[idx] > 0) {
+                    lines.push(`  Erosion (static): ${formatCurrencyFull(staticErosion[idx])}`);
+                  }
+                  return lines.length ? ['', '─ Lost purchasing power ─', ...lines] : [];
                 },
                 label: (item) => {
                   return ` ${item.dataset.label}: ${formatCurrencyFull(item.raw)}`;
