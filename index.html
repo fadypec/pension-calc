@@ -415,7 +415,84 @@
   <!-- Dashboard: Sidebar + Main -->
   <div class="dashboard">
     <div class="sidebar" id="sidebar">
-      <!-- Controls will be added in Task 3 -->
+      <!-- Your Details -->
+<div class="sidebar-section">
+  <div class="sidebar-section-title">Your Details</div>
+  <div class="control-group">
+    <div class="control-label"><span>Current Balance</span></div>
+    <input type="text" class="text-input" id="input-balance" value="31,614.51">
+  </div>
+  <div class="control-group">
+    <div class="control-label"><span>Base Salary</span></div>
+    <input type="text" class="text-input" id="input-salary" value="85,000">
+  </div>
+  <div class="control-group">
+    <div class="control-label"><span>Monthly Contribution</span></div>
+    <input type="text" class="text-input" id="input-contribution" value="3,183.96" readonly
+      style="opacity: 0.7; cursor: not-allowed;">
+    <div class="control-hint">Auto-calculated from salary + contribution %</div>
+  </div>
+</div>
+
+<!-- Contribution Settings -->
+<div class="sidebar-section">
+  <div class="sidebar-section-title">Contribution Settings</div>
+  <div class="control-group">
+    <div class="control-label"><span>Employee Contribution</span><span class="control-value" id="val-employee-pct">33%</span></div>
+    <input type="range" id="slider-employee-pct" min="0" max="50" step="1" value="33">
+  </div>
+  <div class="control-group">
+    <div class="control-label"><span>Employer Contribution</span><span class="control-value" id="val-employer-pct">7%</span></div>
+    <input type="range" id="slider-employer-pct" min="0" max="20" step="1" value="7">
+  </div>
+  <label class="checkbox-group">
+    <input type="checkbox" id="checkbox-cola">
+    I receive a cost of living adjustment (CoLA)
+  </label>
+  <div class="control-group" id="group-salary-growth">
+    <div class="control-label"><span id="label-salary-growth">Salary Growth</span><span class="control-value" id="val-salary-growth">3.5%</span></div>
+    <input type="range" id="slider-salary-growth" min="0" max="10" step="0.1" value="3.5">
+    <div class="control-hint" id="hint-salary-growth"></div>
+  </div>
+</div>
+
+<!-- Assumptions -->
+<div class="sidebar-section">
+  <div class="sidebar-section-title">Assumptions</div>
+  <div class="control-group">
+    <div class="control-label"><span>Expected Return</span><span class="control-value" id="val-return">10.3%</span></div>
+    <input type="range" id="slider-return" min="0" max="15" step="0.1" value="10.3">
+    <div class="control-hint">Fund 5yr avg: 10.3% · 10yr: 12.2%</div>
+  </div>
+  <div class="control-group">
+    <div class="control-label"><span>Inflation (CPIH)</span><span class="control-value" id="val-inflation">2.5%</span></div>
+    <input type="range" id="slider-inflation" min="0" max="10" step="0.1" value="2.5">
+    <div class="control-hint">CPIH 35yr avg: <span id="cpih-avg"></span></div>
+  </div>
+  <div class="control-group">
+    <div class="control-label"><span>Retirement Age</span><span class="control-value" id="val-retirement">68</span></div>
+    <input type="range" id="slider-retirement" min="55" max="75" step="1" value="68">
+  </div>
+</div>
+
+<!-- Retirement Income -->
+<div class="sidebar-section">
+  <div class="sidebar-section-title">Retirement Income</div>
+  <div class="control-group">
+    <div class="control-label"><span>Withdrawal Rate</span><span class="control-value" id="val-withdrawal">4.0%</span></div>
+    <input type="range" id="slider-withdrawal" min="1" max="10" step="0.1" value="4">
+  </div>
+</div>
+
+<!-- Static Info -->
+<div class="static-info">
+  <div class="info-label">Fund Details</div>
+  <div class="info-line">
+    Fund: Aviva Pensions International Index Tracking S2<br>
+    Benchmark: FTSE World ex UK<br>
+    Fund Charge (OCF): 0.60%
+  </div>
+</div>
     </div>
     <div class="main">
       <div class="tab-bar">
@@ -668,6 +745,181 @@
 
       console.log('✓ All self-tests passed');
     })();
+
+    // === UI STATE ===
+
+    const state = {
+      currentBalance: DEFAULTS.currentBalance,
+      baseSalary: DEFAULTS.baseSalary,
+      employeePct: DEFAULTS.employeeContribPct,
+      employerPct: DEFAULTS.employerContribPct,
+      colaEnabled: DEFAULTS.colaEnabled,
+      salaryGrowth: DEFAULTS.salaryGrowth,
+      realRaise: DEFAULTS.realRaise,
+      expectedReturn: DEFAULTS.expectedReturn,
+      inflationRate: DEFAULTS.inflationRate,
+      retirementAge: DEFAULTS.retirementAge,
+      withdrawalRate: DEFAULTS.withdrawalRate,
+    };
+
+    function getMonthlyContribution() {
+      return calculateMonthlyContribution(
+        state.baseSalary, state.employeePct, state.employerPct,
+        DEFAULTS.employerNicRate, DEFAULTS.nicSecondaryThreshold
+      );
+    }
+
+    function formatCurrency(value) {
+      if (Math.abs(value) >= 1000000) {
+        return '£' + (value / 1000000).toFixed(2) + 'M';
+      }
+      if (Math.abs(value) >= 100000) {
+        return '£' + (value / 1000).toFixed(0) + 'k';
+      }
+      return '£' + value.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
+    function formatCurrencyFull(value) {
+      return '£' + value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function parseInputNumber(str) {
+      return parseFloat(str.replace(/[^0-9.\-]/g, '')) || 0;
+    }
+
+    function updateContributionDisplay() {
+      const mc = getMonthlyContribution();
+      document.getElementById('input-contribution').value = mc.toLocaleString('en-GB', {
+        minimumFractionDigits: 2, maximumFractionDigits: 2,
+      });
+    }
+
+    function updateColaUI() {
+      const cola = state.colaEnabled;
+      const label = document.getElementById('label-salary-growth');
+      const hint = document.getElementById('hint-salary-growth');
+      const slider = document.getElementById('slider-salary-growth');
+      const valDisplay = document.getElementById('val-salary-growth');
+
+      if (cola) {
+        label.textContent = 'Real Raise (above inflation)';
+        slider.value = (state.realRaise * 100).toFixed(1);
+        valDisplay.textContent = (state.realRaise * 100).toFixed(1) + '%';
+        const effective = ((state.inflationRate + state.realRaise) * 100).toFixed(1);
+        hint.textContent = `Effective salary growth: ${effective}% (CoLA + raise)`;
+      } else {
+        label.textContent = 'Salary Growth';
+        slider.value = (state.salaryGrowth * 100).toFixed(1);
+        valDisplay.textContent = (state.salaryGrowth * 100).toFixed(1) + '%';
+        hint.textContent = '';
+      }
+    }
+
+    // Set CPIH average display
+    document.getElementById('cpih-avg').textContent = (deriveInflationDefault() * 100).toFixed(1) + '%';
+
+    // Set initial inflation slider to derived default
+    document.getElementById('slider-inflation').value = (DEFAULTS.inflationRate * 100).toFixed(1);
+    document.getElementById('val-inflation').textContent = (DEFAULTS.inflationRate * 100).toFixed(1) + '%';
+
+    // === EVENT HANDLERS ===
+
+    function recalculate() {
+      const mc = getMonthlyContribution();
+      const result = projectPension({
+        currentBalance: state.currentBalance,
+        monthlyContribution: mc,
+        baseSalary: state.baseSalary,
+        employeePct: state.employeePct,
+        employerPct: state.employerPct,
+        retirementAge: state.retirementAge,
+        currentAge: DEFAULTS.currentAge,
+        expectedReturn: state.expectedReturn,
+        inflationRate: state.inflationRate,
+        salaryGrowth: state.salaryGrowth,
+        realRaise: state.realRaise,
+        withdrawalRate: state.withdrawalRate,
+        colaEnabled: state.colaEnabled,
+        fundCharge: FUND.charge,
+        nicRate: DEFAULTS.employerNicRate,
+        nicThreshold: DEFAULTS.nicSecondaryThreshold,
+      });
+
+      updateSummaryCards(result);
+      updateCharts(result);
+    }
+
+    function updateSummaryCards(result) {
+      document.getElementById('card-pot').textContent = formatCurrency(result.nominalPot);
+      document.getElementById('card-pot-sub').textContent = `Age ${state.retirementAge} · Year ${result.retirementYear}`;
+      document.getElementById('card-income').textContent = formatCurrency(result.withdrawalIncome);
+      document.getElementById('card-income-rate').textContent = (state.withdrawalRate * 100).toFixed(0) + '%';
+      document.getElementById('card-income-sub').textContent = formatCurrency(result.withdrawalIncome / 12) + '/month';
+      document.getElementById('card-real').textContent = formatCurrency(result.realPot);
+      document.getElementById('card-annuity').textContent = formatCurrency(result.annuityIncome) + '/yr';
+    }
+
+    function updateCharts(result) {
+      // Placeholder — charts wired in Tasks 4 and 5
+    }
+
+    // Slider handlers
+    function bindSlider(id, stateKey, displayId, suffix, divisor) {
+      const slider = document.getElementById(id);
+      const display = document.getElementById(displayId);
+      slider.addEventListener('input', () => {
+        const raw = parseFloat(slider.value);
+        state[stateKey] = raw / divisor;
+        display.textContent = raw.toFixed(divisor === 100 ? 1 : 0) + suffix;
+        if (stateKey === 'inflationRate' && state.colaEnabled) updateColaUI();
+        updateContributionDisplay();
+        recalculate();
+      });
+    }
+
+    bindSlider('slider-employee-pct', 'employeePct', 'val-employee-pct', '%', 100);
+    bindSlider('slider-employer-pct', 'employerPct', 'val-employer-pct', '%', 100);
+    bindSlider('slider-return', 'expectedReturn', 'val-return', '%', 100);
+    bindSlider('slider-inflation', 'inflationRate', 'val-inflation', '%', 100);
+    bindSlider('slider-retirement', 'retirementAge', 'val-retirement', '', 1);
+    bindSlider('slider-withdrawal', 'withdrawalRate', 'val-withdrawal', '%', 100);
+
+    // Salary growth slider — special handling for CoLA toggle
+    document.getElementById('slider-salary-growth').addEventListener('input', (e) => {
+      const raw = parseFloat(e.target.value);
+      if (state.colaEnabled) {
+        state.realRaise = raw / 100;
+      } else {
+        state.salaryGrowth = raw / 100;
+      }
+      updateColaUI();
+      recalculate();
+    });
+
+    // CoLA checkbox
+    document.getElementById('checkbox-cola').addEventListener('change', (e) => {
+      state.colaEnabled = e.target.checked;
+      updateColaUI();
+      recalculate();
+    });
+
+    // Text inputs
+    document.getElementById('input-balance').addEventListener('change', (e) => {
+      state.currentBalance = parseInputNumber(e.target.value);
+      e.target.value = state.currentBalance.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      recalculate();
+    });
+
+    document.getElementById('input-salary').addEventListener('change', (e) => {
+      state.baseSalary = parseInputNumber(e.target.value);
+      e.target.value = state.baseSalary.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      updateContributionDisplay();
+      recalculate();
+    });
+
+    // Initial calculation
+    updateContributionDisplay();
+    recalculate();
 
     // Tab switching
     document.querySelectorAll('.tab-bar button').forEach(btn => {
