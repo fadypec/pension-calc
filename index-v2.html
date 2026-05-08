@@ -439,15 +439,15 @@
   <div class="sidebar-section-title">Your Details</div>
   <div class="control-group">
     <div class="control-label"><span>Current Balance</span></div>
-    <input type="text" class="text-input" id="input-balance" value="31,614.51">
+    <input type="text" class="text-input" id="input-balance" value="0.00">
   </div>
   <div class="control-group">
     <div class="control-label"><span>Base Salary</span></div>
-    <input type="text" class="text-input" id="input-salary" value="85,000">
+    <input type="text" class="text-input" id="input-salary" value="50,000">
   </div>
   <div class="control-group">
     <div class="control-label"><span>Monthly Contribution</span></div>
-    <input type="text" class="text-input" id="input-contribution" value="3,183.96" readonly
+    <input type="text" class="text-input" id="input-contribution" value="500.00" readonly
       style="opacity: 0.7; cursor: not-allowed;">
     <div class="control-hint">Auto-calculated from salary + contribution %</div>
   </div>
@@ -461,12 +461,12 @@
 <div class="sidebar-section">
   <div class="sidebar-section-title">Contribution Settings</div>
   <div class="control-group">
-    <div class="control-label"><span>Employee Contribution</span><span class="control-value" id="val-employee-pct">33%</span></div>
-    <input type="range" id="slider-employee-pct" min="0" max="50" step="1" value="33" aria-label="Employee contribution percentage">
+    <div class="control-label"><span>Employee Contribution</span><span class="control-value" id="val-employee-pct">5%</span></div>
+    <input type="range" id="slider-employee-pct" min="0" max="50" step="1" value="5" aria-label="Employee contribution percentage">
   </div>
   <div class="control-group">
-    <div class="control-label"><span>Employer Contribution</span><span class="control-value" id="val-employer-pct">7%</span></div>
-    <input type="range" id="slider-employer-pct" min="0" max="20" step="1" value="7" aria-label="Employer contribution percentage">
+    <div class="control-label"><span>Employer Contribution</span><span class="control-value" id="val-employer-pct">3%</span></div>
+    <input type="range" id="slider-employer-pct" min="0" max="20" step="1" value="3" aria-label="Employer contribution percentage">
   </div>
   <label class="checkbox-group">
     <input type="checkbox" id="checkbox-cola">
@@ -478,13 +478,13 @@
     <div class="control-hint" id="hint-salary-growth"></div>
   </div>
   <label class="checkbox-group">
-    <input type="checkbox" id="checkbox-salary-cap" checked>
+    <input type="checkbox" id="checkbox-salary-cap">
     Cap salary after N years
   </label>
-  <div id="salary-cap-controls">
+  <div id="salary-cap-controls" style="display:none">
     <div class="control-group">
       <div class="control-label"><span>Salary Cap</span></div>
-      <input type="text" class="text-input" id="input-salary-cap" value="150,000">
+      <input type="text" class="text-input" id="input-salary-cap" value="150,000" aria-label="Salary cap amount">
     </div>
     <div class="control-group">
       <div class="control-label"><span>Years Until Cap</span><span class="control-value" id="val-cap-years">15</span></div>
@@ -792,11 +792,11 @@
 
     // Defaults
     const DEFAULTS = {
-      currentBalance: 31614.51,
-      monthlyContribution: 3183.96,
-      baseSalary: 85000,
-      employeeContribPct: 0.33,
-      employerContribPct: 0.07,
+      currentBalance: 0,
+      monthlyContribution: 500,
+      baseSalary: 50000,
+      employeeContribPct: 0.05,
+      employerContribPct: 0.03,
       retirementAge: 68,
       currentAge: 30,
       expectedReturn: 0.070, // prudent long-term estimate (FCA medium-high range, see Data Sources)
@@ -807,7 +807,7 @@
       colaEnabled: false,
       employerNicRate: 0.15,
       nicSecondaryThreshold: 5000,
-      salaryCapEnabled: true,
+      salaryCapEnabled: false,
       salaryCap: 150000,
       capYears: 15,
     };
