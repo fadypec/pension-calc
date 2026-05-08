@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pension Growth Calculator</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+    integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC"
+    crossorigin="anonymous"></script>
   <style>
     :root {
       --bg-primary: #0f172a;
@@ -54,7 +56,7 @@
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 1px;
-      opacity: 0.8;
+      color: rgba(255, 255, 255, 0.85);
     }
     .summary-card .value {
       font-size: 26px;
@@ -63,7 +65,7 @@
     }
     .summary-card .sub {
       font-size: 11px;
-      opacity: 0.7;
+      color: rgba(255, 255, 255, 0.75);
       margin-top: 2px;
     }
 
@@ -140,6 +142,11 @@
       cursor: pointer;
       border: none;
     }
+    input[type="range"]:focus {
+      outline: 2px solid var(--accent-blue);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
 
     .text-input {
       width: 100%;
@@ -152,7 +159,8 @@
       font-family: var(--font);
     }
     .text-input:focus {
-      outline: none;
+      outline: 2px solid var(--accent-blue);
+      outline-offset: 1px;
       border-color: var(--accent-blue);
     }
 
@@ -385,29 +393,40 @@
         border-bottom: 1px solid var(--border);
       }
     }
+
+    @media (max-width: 480px) {
+      .summary-cards { grid-template-columns: 1fr; }
+      .summary-card .value { font-size: 22px; }
+      .chart-container { height: 300px; }
+      .income-comparison { flex-direction: column; gap: 16px; padding: 24px 0; }
+      .income-block .amount { font-size: 28px; }
+      .income-details { grid-template-columns: 1fr; }
+      .tab-bar button { padding: 10px 16px; font-size: 12px; }
+    }
   </style>
 </head>
 <body>
+  <noscript><p style="color:#e2e8f0;padding:40px;text-align:center;font-family:system-ui;">This calculator requires JavaScript to be enabled.</p></noscript>
   <!-- Summary Cards -->
   <div class="summary-cards">
     <div class="summary-card blue">
       <div class="label">Pot at Retirement</div>
-      <div class="value" id="card-pot">—</div>
+      <div class="value" id="card-pot" aria-live="polite">—</div>
       <div class="sub" id="card-pot-sub">Age 68 · Year 2064</div>
     </div>
     <div class="summary-card green">
       <div class="label">Annual Income (<span id="card-income-rate">4%</span>) — Today's £</div>
-      <div class="value" id="card-income">—</div>
+      <div class="value" id="card-income" aria-live="polite">—</div>
       <div class="sub" id="card-income-sub">—/month</div>
     </div>
     <div class="summary-card amber">
       <div class="label">Real Value (Today's £)</div>
-      <div class="value" id="card-real">—</div>
+      <div class="value" id="card-real" aria-live="polite">—</div>
       <div class="sub">After inflation erosion</div>
     </div>
     <div class="summary-card purple">
       <div class="label">Annuity Estimate — Today's £</div>
-      <div class="value" id="card-annuity">—</div>
+      <div class="value" id="card-annuity" aria-live="polite">—</div>
       <div class="sub">Guaranteed for life</div>
     </div>
   </div>
@@ -420,17 +439,21 @@
   <div class="sidebar-section-title">Your Details</div>
   <div class="control-group">
     <div class="control-label"><span>Current Balance</span></div>
-    <input type="text" class="text-input" id="input-balance" value="31,614.51">
+    <input type="text" class="text-input" id="input-balance" value="0.00">
   </div>
   <div class="control-group">
     <div class="control-label"><span>Base Salary</span></div>
-    <input type="text" class="text-input" id="input-salary" value="85,000">
+    <input type="text" class="text-input" id="input-salary" value="50,000">
   </div>
   <div class="control-group">
     <div class="control-label"><span>Monthly Contribution</span></div>
-    <input type="text" class="text-input" id="input-contribution" value="3,183.96" readonly
+    <input type="text" class="text-input" id="input-contribution" value="500.00" readonly
       style="opacity: 0.7; cursor: not-allowed;">
     <div class="control-hint">Auto-calculated from salary + contribution %</div>
+  </div>
+  <div class="control-group">
+    <div class="control-label"><span>Current Age</span><span class="control-value" id="val-current-age">30</span></div>
+    <input type="range" id="slider-current-age" min="18" max="65" step="1" value="30" aria-label="Current age">
   </div>
 </div>
 
@@ -438,12 +461,12 @@
 <div class="sidebar-section">
   <div class="sidebar-section-title">Contribution Settings</div>
   <div class="control-group">
-    <div class="control-label"><span>Employee Contribution</span><span class="control-value" id="val-employee-pct">33%</span></div>
-    <input type="range" id="slider-employee-pct" min="0" max="50" step="1" value="33">
+    <div class="control-label"><span>Employee Contribution</span><span class="control-value" id="val-employee-pct">5%</span></div>
+    <input type="range" id="slider-employee-pct" min="0" max="50" step="1" value="5" aria-label="Employee contribution percentage">
   </div>
   <div class="control-group">
-    <div class="control-label"><span>Employer Contribution</span><span class="control-value" id="val-employer-pct">7%</span></div>
-    <input type="range" id="slider-employer-pct" min="0" max="20" step="1" value="7">
+    <div class="control-label"><span>Employer Contribution</span><span class="control-value" id="val-employer-pct">3%</span></div>
+    <input type="range" id="slider-employer-pct" min="0" max="20" step="1" value="3" aria-label="Employer contribution percentage">
   </div>
   <label class="checkbox-group">
     <input type="checkbox" id="checkbox-cola">
@@ -451,8 +474,23 @@
   </label>
   <div class="control-group" id="group-salary-growth">
     <div class="control-label"><span id="label-salary-growth">Salary Growth</span><span class="control-value" id="val-salary-growth">3.5%</span></div>
-    <input type="range" id="slider-salary-growth" min="0" max="10" step="0.1" value="3.5">
+    <input type="range" id="slider-salary-growth" min="0" max="10" step="0.1" value="3.5" aria-label="Salary growth rate">
     <div class="control-hint" id="hint-salary-growth"></div>
+  </div>
+  <label class="checkbox-group">
+    <input type="checkbox" id="checkbox-salary-cap">
+    Cap salary after N years
+  </label>
+  <div id="salary-cap-controls" style="display:none">
+    <div class="control-group">
+      <div class="control-label"><span>Salary Cap</span></div>
+      <input type="text" class="text-input" id="input-salary-cap" value="150,000" aria-label="Salary cap amount">
+    </div>
+    <div class="control-group">
+      <div class="control-label"><span>Years Until Cap</span><span class="control-value" id="val-cap-years">15</span></div>
+      <input type="range" id="slider-cap-years" min="1" max="30" step="1" value="15" aria-label="Years until salary cap">
+      <div class="control-hint" id="hint-salary-cap">After cap: CoLA only (no performance raises)</div>
+    </div>
   </div>
 </div>
 
@@ -460,18 +498,18 @@
 <div class="sidebar-section">
   <div class="sidebar-section-title">Assumptions</div>
   <div class="control-group">
-    <div class="control-label"><span>Expected Return</span><span class="control-value" id="val-return">10.3%</span></div>
-    <input type="range" id="slider-return" min="0" max="15" step="0.1" value="10.3">
-    <div class="control-hint">Fund 5yr avg: 10.3% · 10yr: 12.2%</div>
+    <div class="control-label"><span>Expected Return</span><span class="control-value" id="val-return">7.0%</span></div>
+    <input type="range" id="slider-return" min="0" max="15" step="0.1" value="7.0" aria-label="Expected annual return">
+    <div class="control-hint">FCA rates: 2% (low) · 5% (medium) · 8% (high)</div>
   </div>
   <div class="control-group">
     <div class="control-label"><span>Inflation (CPIH)</span><span class="control-value" id="val-inflation">2.5%</span></div>
-    <input type="range" id="slider-inflation" min="0" max="10" step="0.1" value="2.5">
-    <div class="control-hint">CPIH 35yr avg: <span id="cpih-avg"></span></div>
+    <input type="range" id="slider-inflation" min="0" max="10" step="0.1" value="2.5" aria-label="Inflation rate">
+    <div class="control-hint">Default: 2.5% (post-1997 avg) · Full avg: <span id="cpih-avg"></span></div>
   </div>
   <div class="control-group">
     <div class="control-label"><span>Retirement Age</span><span class="control-value" id="val-retirement">68</span></div>
-    <input type="range" id="slider-retirement" min="55" max="75" step="1" value="68">
+    <input type="range" id="slider-retirement" min="55" max="75" step="1" value="68" aria-label="Retirement age">
   </div>
 </div>
 
@@ -480,37 +518,28 @@
   <div class="sidebar-section-title">Retirement Income</div>
   <div class="control-group">
     <div class="control-label"><span>Withdrawal Rate</span><span class="control-value" id="val-withdrawal">4.0%</span></div>
-    <input type="range" id="slider-withdrawal" min="1" max="10" step="0.1" value="4">
+    <input type="range" id="slider-withdrawal" min="1" max="10" step="0.1" value="4" aria-label="Withdrawal rate">
   </div>
 </div>
 
-<!-- Static Info -->
-<div class="static-info">
-  <div class="info-label">Fund Details</div>
-  <div class="info-line">
-    Fund: Aviva Pensions International Index Tracking S2<br>
-    Benchmark: FTSE World ex UK<br>
-    Fund Charge (OCF): 0.60%
-  </div>
-</div>
     </div>
     <div class="main">
-      <div class="tab-bar">
-        <button class="active" data-tab="growth">Growth</button>
-        <button data-tab="real-value">Real Value</button>
-        <button data-tab="income">Income</button>
+      <div class="tab-bar" role="tablist">
+        <button type="button" class="active" role="tab" aria-selected="true" aria-controls="tab-growth" data-tab="growth">Growth</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="tab-real-value" data-tab="real-value">Real Value</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="tab-income" data-tab="income">Income</button>
       </div>
-      <div class="tab-content active" id="tab-growth">
+      <div class="tab-content active" id="tab-growth" role="tabpanel">
         <div class="chart-container">
           <canvas id="chart-growth"></canvas>
         </div>
       </div>
-      <div class="tab-content" id="tab-real-value">
+      <div class="tab-content" id="tab-real-value" role="tabpanel">
         <div class="chart-container">
           <canvas id="chart-real-value"></canvas>
         </div>
       </div>
-      <div class="tab-content" id="tab-income">
+      <div class="tab-content" id="tab-income" role="tabpanel">
         <div class="income-comparison">
           <div class="income-block">
             <div class="amount blue" id="income-withdrawal-amount">—</div>
@@ -584,10 +613,10 @@
   </div>
 
   <!-- Data Sources Modal -->
-  <div class="modal-overlay" id="modal-sources">
+  <div class="modal-overlay" id="modal-sources" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal">
-      <button class="modal-close" id="btn-close-modal">×</button>
-      <h3>Data Sources</h3>
+      <button class="modal-close" id="btn-close-modal" aria-label="Close">&times;</button>
+      <h3 id="modal-title">Data Sources</h3>
       <div class="source-item">
         <h4>Inflation Data (CPIH)</h4>
         <p>
@@ -613,8 +642,62 @@
           Aviva Pensions International Index Tracking S2.<br>
           <strong>Source:</strong> Aviva Fund Factsheet TM10024, April 2026.<br>
           Benchmark: FTSE World ex UK. Total fund charge (OCF): 0.60%.<br>
-          5-year cumulative return: 63.13% (~10.3% annualised).<br>
-          10-year cumulative return: 215.51% (~12.2% annualised).
+          <strong>Note:</strong> All fund returns below are already net of the 0.60% fund charge.
+        </p>
+        <table style="width:100%; font-size:12px; margin:10px 0; border-collapse:collapse;">
+          <tr style="border-bottom:1px solid var(--border);">
+            <th style="text-align:left; padding:4px 8px; color:var(--text-secondary);">Horizon</th>
+            <th style="text-align:right; padding:4px 8px; color:var(--text-secondary);">Cumulative</th>
+            <th style="text-align:right; padding:4px 8px; color:var(--text-secondary);">Annualised</th>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:4px 8px;">1 year</td>
+            <td style="text-align:right; padding:4px 8px;">16.30%</td>
+            <td style="text-align:right; padding:4px 8px;">16.30%</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:4px 8px;">3 years</td>
+            <td style="text-align:right; padding:4px 8px;">47.99%</td>
+            <td style="text-align:right; padding:4px 8px;">13.97%</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:4px 8px;">5 years</td>
+            <td style="text-align:right; padding:4px 8px;">63.13%</td>
+            <td style="text-align:right; padding:4px 8px;">10.28%</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:4px 8px;">10 years</td>
+            <td style="text-align:right; padding:4px 8px;">215.51%</td>
+            <td style="text-align:right; padding:4px 8px;">12.17%</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 8px;">25yr+ (est.)</td>
+            <td style="text-align:right; padding:4px 8px; color:var(--text-muted);">—</td>
+            <td style="text-align:right; padding:4px 8px;">~9.1%</td>
+          </tr>
+        </table>
+        <p>
+          <strong>25yr+ estimate:</strong> No 25-year data on the Aviva factsheet (fund launched Dec 1997).
+          The MSCI World Index (GBP) returned 9.74% annualised (gross) over 37 years (Dec 1987–Dec 2024),
+          per the <a href="https://www.msci.com/www/index-factsheets/msci-world-index/0137882852" target="_blank" rel="noopener">MSCI World Index (GBP) factsheet</a>.
+          After deducting the fund's 0.60% OCF, this gives an estimated long-term net return of ~9.1%.
+          This is used as the default expected return as it better reflects a 38-year investment horizon
+          than the shorter-period figures.
+        </p>
+      </div>
+      <div class="source-item">
+        <h4>Converting Cumulative Returns to Annualised Returns</h4>
+        <p>
+          Cumulative returns are converted to annualised (compound annual growth rate) using:<br><br>
+          <code style="background:var(--bg-primary); padding:8px 12px; border-radius:4px; display:block; font-size:13px; line-height:1.6;">
+            Annualised Return = (1 + Cumulative Return)<sup>1/N</sup> − 1
+          </code><br>
+          Where <em>N</em> is the number of years. For example, a 5-year cumulative return of 63.13%:<br><br>
+          <code style="background:var(--bg-primary); padding:8px 12px; border-radius:4px; display:block; font-size:13px; line-height:1.6;">
+            (1 + 0.6313)<sup>1/5</sup> − 1 = (1.6313)<sup>0.2</sup> − 1 = 0.1028 = 10.28%
+          </code><br>
+          This accounts for the effect of compounding — a 63.13% total return over 5 years is equivalent to
+          10.28% per year compounded, not simply 63.13% ÷ 5 = 12.63%.
         </p>
       </div>
       <div class="source-item">
@@ -623,6 +706,34 @@
           Employer NIC rate: 15% (from April 2025).<br>
           Secondary Threshold: £5,000/yr (from April 2025).<br>
           <strong>Source:</strong> HMRC Employer NIC rates 2025/26.
+        </p>
+      </div>
+      <div class="source-item">
+        <h4>About Default Values</h4>
+        <p>
+          <strong>Expected return (7.0%):</strong> A prudent central estimate aligned with the FCA's
+          medium-to-high projection range. The FCA prescribes 2% (low), 5% (medium), and 8% (high) gross
+          rates for pension illustrations. The fund's own long-term performance
+          (estimated ~9.1% net, derived from the MSCI World GBP 37-year gross return of 9.74% minus the
+          fund's 0.60% OCF) sits above this, but the fund underperforms its benchmark by ~1.3–1.5%/yr
+          due to tracking error, and past returns may not persist. 7% balances historical evidence with
+          forward-looking prudence.<br><br>
+          <strong>Inflation (2.5%):</strong> Based on the post-Bank of England independence (1997–2025)
+          CPIH average of ~2.3%, rounded up slightly to account for the BoE's persistent tendency to
+          overshoot its 2% target. The full 1990–2025 CPIH average is higher (~2.8%) but is skewed by
+          pre-independence high-inflation years that are less representative of the modern monetary
+          policy environment.<br><br>
+          <strong>Salary growth (3.5%):</strong> Reasonable lifetime average for a UK professional.
+          Early-career growth (30s) is typically 4–6% per year due to promotions, tapering to 2–4% in
+          mid-career and inflation-only adjustments later. The CoLA + 1% real raise option models this
+          more precisely when the salary cap is enabled.<br><br>
+          <strong>Salary cap (£150k / 15 years):</strong> Reflects the observation that salary growth is
+          not exponential — most careers plateau. Beyond this point, only cost-of-living adjustments
+          apply. Adjust based on your field and career trajectory.<br><br>
+          <strong>Withdrawal rate (4%):</strong> Based on the "4% rule" from the Trinity Study
+          (Cooley, Hubbard & Walz, 1998), which found that withdrawing 4% of a portfolio annually
+          (adjusted for inflation) had a high probability of lasting 30+ years. Widely used as a
+          retirement planning benchmark, though some argue 3.5% is more prudent for longer retirements.
         </p>
       </div>
     </div>
@@ -655,42 +766,47 @@
     ];
 
     // Fund data (Aviva Pensions International Index Tracking, April 2026 factsheet TM10024)
+    // NOTE: Fund returns from factsheet are ALREADY NET of the 0.60% charge.
+    // Annualised from cumulative: rate = (1 + cumulative)^(1/years) - 1
     const FUND = {
       name: 'Aviva Pensions International Index Tracking S2',
-      charge: 0.006, // 0.60% OCF
+      charge: 0.006, // 0.60% OCF — display only, NOT subtracted from returns (already deducted)
       benchmark: 'FTSE World ex UK',
-      return5yr: 0.1030, // 5-year annualised
-      return10yr: 0.1220, // 10-year annualised
+      return1yr: 0.1630,  // 1yr cumulative 16.30% → 16.30% annualised (net of charges)
+      return3yr: 0.1397,  // 3yr cumulative 47.99% → (1.4799)^(1/3)-1 = 13.97% annualised
+      return5yr: 0.1028,  // 5yr cumulative 63.13% → (1.6313)^(1/5)-1 = 10.28% annualised
+      return10yr: 0.1217, // 10yr cumulative 215.51% → (3.1551)^(1/10)-1 = 12.17% annualised
+      // No 25yr data on Aviva factsheet. MSCI World (GBP) since Dec 1987 (37yr): 9.74% gross.
+      // After ~0.60% charge, proxy long-term net return: ~9.1%
+      returnLongTerm: 0.091, // estimated 25yr+ net return (MSCI World GBP gross 9.74% minus ~0.6% charge)
     };
 
     // Defaults
     const DEFAULTS = {
-      currentBalance: 31614.51,
-      monthlyContribution: 3183.96,
-      baseSalary: 85000,
-      employeeContribPct: 0.33,
-      employerContribPct: 0.07,
+      currentBalance: 0,
+      monthlyContribution: 500,
+      baseSalary: 50000,
+      employeeContribPct: 0.05,
+      employerContribPct: 0.03,
       retirementAge: 68,
       currentAge: 30,
-      expectedReturn: 0.103,
-      inflationRate: null, // derived from CPIH_DATA
+      expectedReturn: 0.070, // prudent long-term estimate (FCA medium-high range, see Data Sources)
+      inflationRate: 0.025, // 2.5% — post-BoE-independence CPIH average (see Data Sources)
       salaryGrowth: 0.035,
       realRaise: 0.01,
       withdrawalRate: 0.04,
       colaEnabled: false,
       employerNicRate: 0.15,
       nicSecondaryThreshold: 5000,
+      salaryCapEnabled: false,
+      salaryCap: 150000,
+      capYears: 15,
     };
 
-    // Derive default inflation from CPIH mean
-    DEFAULTS.inflationRate = CPIH_DATA.reduce((sum, d) => sum + d.rate, 0) / CPIH_DATA.length / 100;
+    // CPIH full-history mean (for display in sidebar hint)
+    const CPIH_FULL_MEAN = CPIH_DATA.reduce((sum, d) => sum + d.rate, 0) / CPIH_DATA.length / 100;
 
     // === CALCULATION ENGINE ===
-
-    function deriveInflationDefault() {
-      const mean = CPIH_DATA.reduce((sum, d) => sum + d.rate, 0) / CPIH_DATA.length;
-      return mean / 100; // convert percentage to decimal
-    }
 
     function interpolateAnnuityRate(age) {
       if (age <= ANNUITY_RATES[0].age) return ANNUITY_RATES[0].rate;
@@ -709,9 +825,11 @@
     function calculateMonthlyContribution(salary, employeePct, employerPct, nicRate, nicThreshold) {
       const employeeAmount = salary * employeePct;
       const employerAmount = salary * employerPct;
-      // NIC saving: employer saves NIC on the salary sacrifice amount
+      // NIC saving: difference in employer NIC before and after salary sacrifice
       const sacrificeAmount = salary * employeePct;
-      const nicSaving = sacrificeAmount * nicRate;
+      const preSacrificeNIC = Math.max(0, salary - nicThreshold) * nicRate;
+      const postSacrificeNIC = Math.max(0, (salary - sacrificeAmount) - nicThreshold) * nicRate;
+      const nicSaving = preSacrificeNIC - postSacrificeNIC;
       const totalAnnual = employeeAmount + employerAmount + nicSaving;
       return totalAnnual / 12;
     }
@@ -722,9 +840,25 @@
         employeePct, employerPct, retirementAge, currentAge,
         expectedReturn, inflationRate, salaryGrowth, realRaise,
         withdrawalRate, colaEnabled, fundCharge, nicRate, nicThreshold,
+        salaryCapEnabled, salaryCap, capYears,
       } = params;
 
-      const netAnnualReturn = expectedReturn - fundCharge;
+      if (retirementAge <= currentAge) {
+        return {
+          staticData: [{ month: 0, age: currentAge, year: new Date().getFullYear(), value: currentBalance }],
+          salaryData: [{ month: 0, age: currentAge, year: new Date().getFullYear(), value: currentBalance }],
+          staticRealData: [{ month: 0, age: currentAge, year: new Date().getFullYear(), value: currentBalance }],
+          salaryRealData: [{ month: 0, age: currentAge, year: new Date().getFullYear(), value: currentBalance }],
+          nominalPot: currentBalance, realPot: currentBalance,
+          withdrawalIncome: currentBalance * withdrawalRate, annuityIncome: currentBalance * interpolateAnnuityRate(retirementAge),
+          realWithdrawalIncome: currentBalance * withdrawalRate, realAnnuityIncome: currentBalance * interpolateAnnuityRate(retirementAge),
+          annuityRate: interpolateAnnuityRate(retirementAge), retirementYear: new Date().getFullYear(),
+        };
+      }
+
+      // Fund charge is NOT subtracted here — the expected return is already net of charges
+      // (Aviva factsheet performance figures have the 0.60% OCF already deducted)
+      const netAnnualReturn = expectedReturn;
       const netMonthlyReturn = Math.pow(1 + netAnnualReturn, 1/12) - 1;
       const totalMonths = (retirementAge - currentAge) * 12;
       const currentYear = new Date().getFullYear();
@@ -745,16 +879,31 @@
 
         if (month % 12 === 0) {
           // Record annual data point
-          staticData.push({ month, age: Math.round(age), year: Math.round(year), value: staticPot });
-          salaryData.push({ month, age: Math.round(age), year: Math.round(year), value: salaryPot });
+          staticData.push({ month, age: currentAge + Math.floor(month / 12), year: currentYear + Math.floor(month / 12), value: staticPot });
+          salaryData.push({ month, age: currentAge + Math.floor(month / 12), year: currentYear + Math.floor(month / 12), value: salaryPot });
 
           // Update salary at each new year (except the first)
           if (month > 0) {
-            if (colaEnabled) {
+            const yearsElapsed = month / 12;
+            const cappedOut = salaryCapEnabled && (salary >= salaryCap || yearsElapsed >= capYears);
+
+            if (cappedOut) {
+              // After cap: only CoLA (inflation adjustment), no performance raises
+              if (colaEnabled) {
+                salary = salary * (1 + inflationRate);
+              }
+              // If no CoLA and capped, salary stays flat
+            } else if (colaEnabled) {
               salary = salary * (1 + inflationRate + realRaise);
             } else {
               salary = salary * (1 + salaryGrowth);
             }
+
+            // Enforce hard cap
+            if (salaryCapEnabled && salary > salaryCap && !cappedOut) {
+              salary = salaryCap;
+            }
+
             currentContrib = calculateMonthlyContribution(salary, employeePct, employerPct, nicRate, nicThreshold);
           }
         }
@@ -803,41 +952,40 @@
 
     // === SELF-TEST (runs on page load, check browser console) ===
 
-    (function selfTest() {
-      // Test interpolateAnnuityRate
-      console.assert(interpolateAnnuityRate(68) === 0.055, 'Annuity rate at 68 should be 5.5%');
-      console.assert(interpolateAnnuityRate(55) === 0.040, 'Annuity rate at 55 should be 4.0%');
-      console.assert(interpolateAnnuityRate(75) === 0.070, 'Annuity rate at 75 should be 7.0%');
-      // Interpolation: 66 is between 65 (5.0%) and 67 (5.3%), so 5.15%
-      const rate66 = interpolateAnnuityRate(66);
-      console.assert(Math.abs(rate66 - 0.0515) < 0.0001, `Annuity rate at 66 should be ~5.15%, got ${rate66}`);
+    if (new URLSearchParams(location.search).has('debug')) {
+      (function selfTest() {
+        // Test interpolateAnnuityRate
+        console.assert(interpolateAnnuityRate(68) === 0.055, 'Annuity rate at 68 should be 5.5%');
+        console.assert(interpolateAnnuityRate(55) === 0.040, 'Annuity rate at 55 should be 4.0%');
+        console.assert(interpolateAnnuityRate(75) === 0.070, 'Annuity rate at 75 should be 7.0%');
+        // Interpolation: 66 is between 65 (5.0%) and 67 (5.3%), so 5.15%
+        const rate66 = interpolateAnnuityRate(66);
+        console.assert(Math.abs(rate66 - 0.0515) < 0.0001, `Annuity rate at 66 should be ~5.15%, got ${rate66}`);
 
-      // Test calculateMonthlyContribution
-      const mc = calculateMonthlyContribution(85000, 0.33, 0.07, 0.15, 5000);
-      // employee: 28050, employer: 5950, NIC saving: 28050 * 0.15 = 4207.50, total: 38207.50/12 = 3183.96
-      console.assert(Math.abs(mc - 3183.96) < 0.01, `Monthly contribution should be ~3183.96, got ${mc}`);
+        // Test calculateMonthlyContribution
+        const mc = calculateMonthlyContribution(85000, 0.33, 0.07, 0.15, 5000);
+        // employee: 28050, employer: 5950, NIC saving: 28050 * 0.15 = 4207.50, total: 38207.50/12 = 3183.96
+        console.assert(Math.abs(mc - 3183.96) < 0.01, `Monthly contribution should be ~3183.96, got ${mc}`);
 
-      // Test deriveInflationDefault returns a reasonable number
-      const inf = deriveInflationDefault();
-      console.assert(inf > 0.02 && inf < 0.04, `Default inflation should be between 2-4%, got ${inf * 100}%`);
+        // Test projection returns expected structure
+        const result = projectPension({
+          currentBalance: 31614.51, monthlyContribution: 3183.96, baseSalary: 85000,
+          employeePct: 0.33, employerPct: 0.07, retirementAge: 68, currentAge: 30,
+          expectedReturn: 0.070, inflationRate: 0.025, salaryGrowth: 0.035,
+          realRaise: 0.01, withdrawalRate: 0.04, colaEnabled: false,
+          fundCharge: 0.006, nicRate: 0.15, nicThreshold: 5000,
+          salaryCapEnabled: false, salaryCap: 150000, capYears: 15,
+        });
+        console.assert(result.staticData.length > 0, 'Should have static data points');
+        console.assert(result.salaryData.length > 0, 'Should have salary data points');
+        console.assert(result.nominalPot > 31614.51, 'Nominal pot should grow');
+        console.assert(result.realPot < result.nominalPot, 'Real pot should be less than nominal');
+        console.assert(result.withdrawalIncome > 0, 'Withdrawal income should be positive');
+        console.assert(result.annuityIncome > 0, 'Annuity income should be positive');
 
-      // Test projection returns expected structure
-      const result = projectPension({
-        currentBalance: 31614.51, monthlyContribution: 3183.96, baseSalary: 85000,
-        employeePct: 0.33, employerPct: 0.07, retirementAge: 68, currentAge: 30,
-        expectedReturn: 0.103, inflationRate: 0.025, salaryGrowth: 0.035,
-        realRaise: 0.01, withdrawalRate: 0.04, colaEnabled: false,
-        fundCharge: 0.006, nicRate: 0.15, nicThreshold: 5000,
-      });
-      console.assert(result.staticData.length > 0, 'Should have static data points');
-      console.assert(result.salaryData.length > 0, 'Should have salary data points');
-      console.assert(result.nominalPot > 31614.51, 'Nominal pot should grow');
-      console.assert(result.realPot < result.nominalPot, 'Real pot should be less than nominal');
-      console.assert(result.withdrawalIncome > 0, 'Withdrawal income should be positive');
-      console.assert(result.annuityIncome > 0, 'Annuity income should be positive');
-
-      console.log('✓ All self-tests passed');
-    })();
+        console.log('✓ All self-tests passed');
+      })();
+    }
 
     // === UI STATE ===
 
@@ -852,7 +1000,11 @@
       expectedReturn: DEFAULTS.expectedReturn,
       inflationRate: DEFAULTS.inflationRate,
       retirementAge: DEFAULTS.retirementAge,
+      currentAge: DEFAULTS.currentAge,
       withdrawalRate: DEFAULTS.withdrawalRate,
+      salaryCapEnabled: DEFAULTS.salaryCapEnabled,
+      salaryCap: DEFAULTS.salaryCap,
+      capYears: DEFAULTS.capYears,
     };
 
     function getMonthlyContribution() {
@@ -865,9 +1017,6 @@
     function formatCurrency(value) {
       if (Math.abs(value) >= 1000000) {
         return '£' + (value / 1000000).toFixed(2) + 'M';
-      }
-      if (Math.abs(value) >= 100000) {
-        return '£' + (value / 1000).toFixed(0) + 'k';
       }
       return '£' + value.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     }
@@ -909,7 +1058,7 @@
     }
 
     // Set CPIH average display
-    document.getElementById('cpih-avg').textContent = (deriveInflationDefault() * 100).toFixed(1) + '%';
+    document.getElementById('cpih-avg').textContent = (CPIH_FULL_MEAN * 100).toFixed(1) + '%';
 
     // Set initial inflation slider to derived default
     document.getElementById('slider-inflation').value = (DEFAULTS.inflationRate * 100).toFixed(1);
@@ -917,7 +1066,20 @@
 
     // === EVENT HANDLERS ===
 
+    let rafId = null;
+    function debouncedRecalculate() {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => { recalculate(); rafId = null; });
+    }
+
     function recalculate() {
+      // Clamp retirement age above current age
+      if (state.retirementAge <= state.currentAge) {
+        state.retirementAge = state.currentAge + 1;
+        document.getElementById('slider-retirement').value = state.retirementAge;
+        document.getElementById('val-retirement').textContent = state.retirementAge;
+      }
+
       const mc = getMonthlyContribution();
       const result = projectPension({
         currentBalance: state.currentBalance,
@@ -926,7 +1088,7 @@
         employeePct: state.employeePct,
         employerPct: state.employerPct,
         retirementAge: state.retirementAge,
-        currentAge: DEFAULTS.currentAge,
+        currentAge: state.currentAge,
         expectedReturn: state.expectedReturn,
         inflationRate: state.inflationRate,
         salaryGrowth: state.salaryGrowth,
@@ -936,10 +1098,14 @@
         fundCharge: FUND.charge,
         nicRate: DEFAULTS.employerNicRate,
         nicThreshold: DEFAULTS.nicSecondaryThreshold,
+        salaryCapEnabled: state.salaryCapEnabled,
+        salaryCap: state.salaryCap,
+        capYears: state.capYears,
       });
 
       updateSummaryCards(result);
       updateCharts(result);
+      stateToURL();
     }
 
     function updateSummaryCards(result) {
@@ -982,15 +1148,15 @@
         {
           label: 'Static contributions',
           data: result.staticData.map(d => d.value),
-          borderColor: '#10b981',
-          backgroundColor: 'rgba(16, 185, 129, 0.08)',
+          borderColor: '#ef4444',
+          backgroundColor: 'rgba(239, 68, 68, 0.08)',
           fill: true,
           tension: 0.3,
           borderWidth: 2.5,
           borderDash: [6, 4],
           pointRadius: 0,
           pointHoverRadius: 5,
-          pointHoverBackgroundColor: '#10b981',
+          pointHoverBackgroundColor: '#ef4444',
         },
       ];
 
@@ -1053,55 +1219,65 @@
       const ctx = document.getElementById('chart-real-value').getContext('2d');
       const labels = result.salaryRealData.map(d => d.age);
 
+      // Pre-compute erosion values for tooltips
+      const salaryErosion = result.salaryData.map((d, i) => d.value - result.salaryRealData[i].value);
+      const staticErosion = result.staticData.map((d, i) => d.value - result.staticRealData[i].value);
+
+      // Dataset order matters for fill targeting:
+      // 0: Nominal (salary-linked) — dashed blue, fill down to index 2 (real salary-linked) in blue
+      // 1: Nominal (static)        — dashed green, fill down to index 3 (real static) in green
+      // 2: Real value (salary-linked) — solid blue
+      // 3: Real value (static)        — solid green
       const datasets = [
         {
           label: 'Nominal (salary-linked)',
           data: result.salaryData.map(d => d.value),
-          borderColor: 'rgba(59, 130, 246, 0.3)',
-          backgroundColor: 'transparent',
-          fill: false,
+          borderColor: 'rgba(59, 130, 246, 0.4)',
+          backgroundColor: 'rgba(59, 130, 246, 0.10)',
+          fill: '+2',
           tension: 0.3,
           borderWidth: 1.5,
-          borderDash: [4, 4],
+          borderDash: [6, 4],
           pointRadius: 0,
           pointHoverRadius: 4,
-          pointHoverBackgroundColor: 'rgba(59, 130, 246, 0.5)',
+          pointHoverBackgroundColor: '#3b82f6',
+        },
+        {
+          label: 'Nominal (static)',
+          data: result.staticData.map(d => d.value),
+          borderColor: 'rgba(239, 68, 68, 0.4)',
+          backgroundColor: 'rgba(239, 68, 68, 0.10)',
+          fill: '+2',
+          tension: 0.3,
+          borderWidth: 1.5,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: '#ef4444',
         },
         {
           label: 'Real value (salary-linked)',
           data: result.salaryRealData.map(d => d.value),
-          borderColor: '#f59e0b',
-          backgroundColor: 'rgba(245, 158, 11, 0.12)',
-          fill: true,
+          borderColor: '#3b82f6',
+          backgroundColor: 'transparent',
+          fill: false,
           tension: 0.3,
           borderWidth: 2.5,
           pointRadius: 0,
           pointHoverRadius: 5,
-          pointHoverBackgroundColor: '#f59e0b',
+          pointHoverBackgroundColor: '#3b82f6',
         },
         {
           label: 'Real value (static)',
           data: result.staticRealData.map(d => d.value),
-          borderColor: '#10b981',
-          backgroundColor: 'rgba(16, 185, 129, 0.08)',
-          fill: true,
+          borderColor: '#ef4444',
+          backgroundColor: 'transparent',
+          fill: false,
           tension: 0.3,
           borderWidth: 2.5,
-          borderDash: [6, 4],
           pointRadius: 0,
           pointHoverRadius: 5,
-          pointHoverBackgroundColor: '#10b981',
-        },
-        {
-          label: 'Inflation erosion',
-          data: result.salaryData.map((d, i) => d.value - result.salaryRealData[i].value),
-          borderColor: 'transparent',
-          backgroundColor: 'rgba(239, 68, 68, 0.10)',
-          fill: true,
-          tension: 0.3,
-          borderWidth: 0,
-          pointRadius: 0,
-          pointHoverRadius: 0,
+          pointHoverBackgroundColor: '#ef4444',
         },
       ];
 
@@ -1118,8 +1294,37 @@
               labels: {
                 color: '#94a3b8',
                 usePointStyle: true,
-                padding: 20,
-                filter: (item) => item.text !== 'Inflation erosion',
+                padding: 16,
+                generateLabels: (chart) => {
+                  // Standard labels for the 4 line datasets
+                  const lineLabels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                  // Add custom legend entries for shaded erosion areas
+                  lineLabels.push({
+                    text: 'Inflation erosion (salary-linked)',
+                    fillStyle: 'rgba(59, 130, 246, 0.10)',
+                    strokeStyle: 'rgba(59, 130, 246, 0.3)',
+                    lineWidth: 1,
+                    pointStyle: 'rect',
+                    hidden: false,
+                    datasetIndex: null,
+                  });
+                  lineLabels.push({
+                    text: 'Inflation erosion (static)',
+                    fillStyle: 'rgba(239, 68, 68, 0.10)',
+                    strokeStyle: 'rgba(239, 68, 68, 0.3)',
+                    lineWidth: 1,
+                    pointStyle: 'rect',
+                    hidden: false,
+                    datasetIndex: null,
+                  });
+                  return lineLabels;
+                },
+              },
+              onClick: (e, legendItem, legend) => {
+                // Only handle clicks on real dataset legends
+                if (legendItem.datasetIndex != null) {
+                  Chart.defaults.plugins.legend.onClick(e, legendItem, legend);
+                }
               },
             },
             tooltip: {
@@ -1135,10 +1340,18 @@
                   const d = result.salaryData[idx];
                   return `Age ${d.age} (${d.year})`;
                 },
-                label: (item) => {
-                  if (item.dataset.label === 'Inflation erosion') {
-                    return ` Purchasing power lost: ${formatCurrencyFull(item.raw)}`;
+                afterBody: (items) => {
+                  const idx = items[0].dataIndex;
+                  const lines = [];
+                  if (salaryErosion[idx] > 0) {
+                    lines.push(`  Erosion (salary-linked): ${formatCurrencyFull(salaryErosion[idx])}`);
                   }
+                  if (staticErosion[idx] > 0) {
+                    lines.push(`  Erosion (static): ${formatCurrencyFull(staticErosion[idx])}`);
+                  }
+                  return lines.length ? ['', '─ Lost purchasing power ─', ...lines] : [];
+                },
+                label: (item) => {
                   return ` ${item.dataset.label}: ${formatCurrencyFull(item.raw)}`;
                 },
               },
@@ -1156,7 +1369,7 @@
                 color: '#64748b',
                 callback: (val) => formatCurrency(val),
               },
-              title: { display: true, text: "Value (Today's £)", color: '#64748b' },
+              title: { display: true, text: 'Pot Value', color: '#64748b' },
             },
           },
         },
@@ -1171,16 +1384,16 @@
     }
 
     function updateIncomeTab(result) {
-      // Headline figures
-      document.getElementById('income-withdrawal-amount').textContent = formatCurrency(result.withdrawalIncome) + '/yr';
+      // Headline figures — show real (today's £) values to match summary cards
+      document.getElementById('income-withdrawal-amount').textContent = formatCurrency(result.realWithdrawalIncome) + '/yr';
       document.getElementById('income-withdrawal-label').textContent =
-        (state.withdrawalRate * 100).toFixed(1) + '% Withdrawal Rule';
+        (state.withdrawalRate * 100).toFixed(1) + '% Withdrawal Rule (today\'s £)';
       document.getElementById('income-withdrawal-monthly').textContent =
-        formatCurrency(result.withdrawalIncome / 12) + '/month';
+        formatCurrency(result.realWithdrawalIncome / 12) + '/month';
 
-      document.getElementById('income-annuity-amount').textContent = formatCurrency(result.annuityIncome) + '/yr';
+      document.getElementById('income-annuity-amount').textContent = formatCurrency(result.realAnnuityIncome) + '/yr';
       document.getElementById('income-annuity-monthly').textContent =
-        formatCurrency(result.annuityIncome / 12) + '/month';
+        formatCurrency(result.realAnnuityIncome / 12) + '/month (today\'s £)';
 
       // Detail cards
       document.getElementById('detail-wr-nominal').textContent = formatCurrencyFull(result.withdrawalIncome);
@@ -1206,7 +1419,7 @@
         display.textContent = raw.toFixed(divisor === 100 ? 1 : 0) + suffix;
         if (stateKey === 'inflationRate' && state.colaEnabled) updateColaUI();
         updateContributionDisplay();
-        recalculate();
+        debouncedRecalculate();
       });
     }
 
@@ -1216,6 +1429,7 @@
     bindSlider('slider-inflation', 'inflationRate', 'val-inflation', '%', 100);
     bindSlider('slider-retirement', 'retirementAge', 'val-retirement', '', 1);
     bindSlider('slider-withdrawal', 'withdrawalRate', 'val-withdrawal', '%', 100);
+    bindSlider('slider-current-age', 'currentAge', 'val-current-age', '', 1);
 
     // Salary growth slider — special handling for CoLA toggle
     document.getElementById('slider-salary-growth').addEventListener('input', (e) => {
@@ -1226,14 +1440,14 @@
         state.salaryGrowth = raw / 100;
       }
       updateColaUI();
-      recalculate();
+      debouncedRecalculate();
     });
 
     // CoLA checkbox
     document.getElementById('checkbox-cola').addEventListener('change', (e) => {
       state.colaEnabled = e.target.checked;
       updateColaUI();
-      recalculate();
+      debouncedRecalculate();
     });
 
     // Text inputs
@@ -1250,49 +1464,92 @@
       recalculate();
     });
 
+    // Salary cap controls
+    document.getElementById('checkbox-salary-cap').addEventListener('change', (e) => {
+      state.salaryCapEnabled = e.target.checked;
+      document.getElementById('salary-cap-controls').style.display = e.target.checked ? 'block' : 'none';
+      debouncedRecalculate();
+    });
+
+    document.getElementById('input-salary-cap').addEventListener('change', (e) => {
+      state.salaryCap = parseInputNumber(e.target.value);
+      e.target.value = state.salaryCap.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      recalculate();
+    });
+
+    document.getElementById('slider-cap-years').addEventListener('input', (e) => {
+      const raw = parseInt(e.target.value);
+      state.capYears = raw;
+      document.getElementById('val-cap-years').textContent = raw;
+      debouncedRecalculate();
+    });
+
     // Initial calculation
     updateContributionDisplay();
     recalculate();
 
     // === FOOTER: DATA SOURCES MODAL ===
+    const modalOverlay = document.getElementById('modal-sources');
+    const btnSources = document.getElementById('btn-sources');
+    const btnCloseModal = document.getElementById('btn-close-modal');
 
-    document.getElementById('btn-sources').addEventListener('click', () => {
-      document.getElementById('modal-sources').classList.add('active');
+    function openModal() {
+      modalOverlay.classList.add('active');
+      btnCloseModal.focus();
+    }
+    function closeModal() {
+      modalOverlay.classList.remove('active');
+      btnSources.focus();
+    }
+
+    btnSources.addEventListener('click', openModal);
+    btnCloseModal.addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeModal();
     });
-
-    document.getElementById('btn-close-modal').addEventListener('click', () => {
-      document.getElementById('modal-sources').classList.remove('active');
-    });
-
-    document.getElementById('modal-sources').addEventListener('click', (e) => {
-      if (e.target === e.currentTarget) {
-        e.currentTarget.classList.remove('active');
-      }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modalOverlay.classList.contains('active')) closeModal();
     });
 
     // === FOOTER: CSV DOWNLOAD ===
 
     document.getElementById('btn-download').addEventListener('click', () => {
-      let csv = 'Dataset,Field,Value\n';
-
-      // CPIH data
-      csv += '\n';
-      CPIH_DATA.forEach(d => {
-        csv += `CPIH,${d.year},${d.rate}%\n`;
+      const mc = getMonthlyContribution();
+      const result = projectPension({
+        currentBalance: state.currentBalance, monthlyContribution: mc,
+        baseSalary: state.baseSalary, employeePct: state.employeePct,
+        employerPct: state.employerPct, retirementAge: state.retirementAge,
+        currentAge: state.currentAge, expectedReturn: state.expectedReturn,
+        inflationRate: state.inflationRate, salaryGrowth: state.salaryGrowth,
+        realRaise: state.realRaise, withdrawalRate: state.withdrawalRate,
+        colaEnabled: state.colaEnabled, fundCharge: FUND.charge,
+        nicRate: DEFAULTS.employerNicRate, nicThreshold: DEFAULTS.nicSecondaryThreshold,
+        salaryCapEnabled: state.salaryCapEnabled, salaryCap: state.salaryCap,
+        capYears: state.capYears,
       });
 
-      // Annuity rates
-      csv += '\n';
-      ANNUITY_RATES.forEach(d => {
-        csv += `Annuity Rate,Age ${d.age},${(d.rate * 100).toFixed(1)}%\n`;
-      });
+      let csv = '# Pension Calculator Projection\n';
+      csv += `# Generated: ${new Date().toISOString()}\n`;
+      csv += `# Expected Return: ${(state.expectedReturn * 100).toFixed(1)}%\n`;
+      csv += `# Inflation: ${(state.inflationRate * 100).toFixed(1)}%\n`;
+      csv += `# Monthly Contribution: ${mc.toFixed(2)}\n`;
+      csv += `# Retirement Age: ${state.retirementAge}\n\n`;
 
-      // Fund data
+      csv += 'Age,Year,Nominal (Salary-Linked),Nominal (Static),Real (Salary-Linked),Real (Static)\n';
+      for (let i = 0; i < result.salaryData.length; i++) {
+        csv += `${result.salaryData[i].age},${result.salaryData[i].year},`;
+        csv += `${result.salaryData[i].value.toFixed(2)},${result.staticData[i].value.toFixed(2)},`;
+        csv += `${result.salaryRealData[i].value.toFixed(2)},${result.staticRealData[i].value.toFixed(2)}\n`;
+      }
+
+      csv += '\n# Reference Data\n';
+      csv += '\nDataset,Field,Value\n';
+      CPIH_DATA.forEach(d => { csv += `CPIH,${d.year},${d.rate}%\n`; });
+      csv += '\n';
+      ANNUITY_RATES.forEach(d => { csv += `Annuity Rate,Age ${d.age},${(d.rate * 100).toFixed(1)}%\n`; });
       csv += '\n';
       csv += `Fund,Name,${FUND.name}\n`;
       csv += `Fund,Charge (OCF),${(FUND.charge * 100).toFixed(2)}%\n`;
-      csv += `Fund,5yr Annualised Return,${(FUND.return5yr * 100).toFixed(1)}%\n`;
-      csv += `Fund,10yr Annualised Return,${(FUND.return10yr * 100).toFixed(1)}%\n`;
       csv += `Fund,Benchmark,${FUND.benchmark}\n`;
 
       const blob = new Blob([csv], { type: 'text/csv' });
@@ -1307,12 +1564,70 @@
     // Tab switching
     document.querySelectorAll('.tab-bar button').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-bar button').forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-selected', 'false');
+        });
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         btn.classList.add('active');
-        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+        const tabPanel = document.getElementById('tab-' + btn.dataset.tab);
+        tabPanel.classList.add('active');
+        // Fix chart sizing when switching to a tab with a chart
+        if (btn.dataset.tab === 'real-value' && realValueChart) realValueChart.resize();
+        if (btn.dataset.tab === 'growth' && growthChart) growthChart.resize();
       });
     });
+    // === URL STATE PERSISTENCE ===
+    function stateToURL() {
+      const params = new URLSearchParams();
+      for (const [key, val] of Object.entries(state)) {
+        if (state[key] !== DEFAULTS[key] && key !== 'currentAge') params.set(key, val);
+        // currentAge uses a different key name in DEFAULTS
+      }
+      if (state.currentAge !== DEFAULTS.currentAge) params.set('currentAge', state.currentAge);
+      const qs = params.toString();
+      if (qs) history.replaceState(null, '', '?' + qs);
+      else history.replaceState(null, '', location.pathname);
+    }
+
+    function stateFromURL() {
+      const params = new URLSearchParams(location.search);
+      for (const [key, val] of params.entries()) {
+        if (key in state) {
+          if (typeof state[key] === 'boolean') state[key] = val === 'true';
+          else state[key] = parseFloat(val);
+        }
+      }
+      // Sync UI elements with loaded state
+      document.getElementById('input-balance').value = state.currentBalance.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('input-salary').value = state.baseSalary.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      document.getElementById('slider-employee-pct').value = state.employeePct * 100;
+      document.getElementById('val-employee-pct').textContent = (state.employeePct * 100).toFixed(0) + '%';
+      document.getElementById('slider-employer-pct').value = state.employerPct * 100;
+      document.getElementById('val-employer-pct').textContent = (state.employerPct * 100).toFixed(0) + '%';
+      document.getElementById('slider-return').value = (state.expectedReturn * 100).toFixed(1);
+      document.getElementById('val-return').textContent = (state.expectedReturn * 100).toFixed(1) + '%';
+      document.getElementById('slider-inflation').value = (state.inflationRate * 100).toFixed(1);
+      document.getElementById('val-inflation').textContent = (state.inflationRate * 100).toFixed(1) + '%';
+      document.getElementById('slider-retirement').value = state.retirementAge;
+      document.getElementById('val-retirement').textContent = state.retirementAge;
+      document.getElementById('slider-withdrawal').value = (state.withdrawalRate * 100).toFixed(1);
+      document.getElementById('val-withdrawal').textContent = (state.withdrawalRate * 100).toFixed(1) + '%';
+      document.getElementById('slider-current-age').value = state.currentAge;
+      document.getElementById('val-current-age').textContent = state.currentAge;
+      document.getElementById('checkbox-cola').checked = state.colaEnabled;
+      document.getElementById('checkbox-salary-cap').checked = state.salaryCapEnabled;
+      document.getElementById('salary-cap-controls').style.display = state.salaryCapEnabled ? 'block' : 'none';
+      document.getElementById('input-salary-cap').value = state.salaryCap.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      document.getElementById('slider-cap-years').value = state.capYears;
+      document.getElementById('val-cap-years').textContent = state.capYears;
+      updateColaUI();
+      updateContributionDisplay();
+    }
+
+    // Load state from URL on page load
+    if (location.search) stateFromURL();
   </script>
 </body>
 </html>
