@@ -1484,6 +1484,9 @@
       debouncedRecalculate();
     });
 
+    // Load state from URL BEFORE initial calculation
+    if (location.search) stateFromURL();
+
     // Initial calculation
     updateContributionDisplay();
     recalculate();
@@ -1579,13 +1582,19 @@
       });
     });
     // === URL STATE PERSISTENCE ===
+
+    // Map state keys to DEFAULTS keys where they differ
+    const STATE_TO_DEFAULTS = {
+      employeePct: 'employeeContribPct',
+      employerPct: 'employerContribPct',
+    };
+
     function stateToURL() {
       const params = new URLSearchParams();
       for (const [key, val] of Object.entries(state)) {
-        if (state[key] !== DEFAULTS[key] && key !== 'currentAge') params.set(key, val);
-        // currentAge uses a different key name in DEFAULTS
+        const defaultKey = STATE_TO_DEFAULTS[key] || key;
+        if (val !== DEFAULTS[defaultKey]) params.set(key, val);
       }
-      if (state.currentAge !== DEFAULTS.currentAge) params.set('currentAge', state.currentAge);
       const qs = params.toString();
       if (qs) history.replaceState(null, '', '?' + qs);
       else history.replaceState(null, '', location.pathname);
@@ -1626,8 +1635,7 @@
       updateContributionDisplay();
     }
 
-    // Load state from URL on page load
-    if (location.search) stateFromURL();
+    // stateFromURL() is called above, before the initial recalculate()
   </script>
 </body>
 </html>
