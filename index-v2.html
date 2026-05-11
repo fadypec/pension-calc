@@ -1114,7 +1114,7 @@
 
       updateSummaryCards(result);
       updateCharts(result);
-      stateToURL();
+      if (initialLoadDone) stateToURL();
     }
 
     function updateSummaryCards(result) {
@@ -1494,11 +1494,13 @@
     });
 
     // Load state from URL BEFORE initial calculation
+    let initialLoadDone = false;
     if (location.search) stateFromURL();
 
     // Initial calculation
     updateContributionDisplay();
     recalculate();
+    initialLoadDone = true;
 
     // === FOOTER: DATA SOURCES MODAL ===
     const modalOverlay = document.getElementById('modal-sources');
